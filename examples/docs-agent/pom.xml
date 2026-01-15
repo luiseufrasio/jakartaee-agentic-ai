@@ -3,12 +3,15 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>jakarta.ai</groupId>
-    <artifactId>jakarta-agentic-ai-api</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <parent>
+        <groupId>jakarta.ai</groupId>
+        <artifactId>jakarta-agentic-ai-examples</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+    <artifactId>jakarta-agentic-ai-examples-docs-agent</artifactId>
     <packaging>jar</packaging>
-    <name>Jakarta Agentic AI API</name>
-    <description>Vendor-neutral API for building agentic AI applications on Jakarta EE runtimes.</description>
+    <name>Documentation Agent Example</name>
+    <description>Example agent that monitors pull requests and automatically generates documentation updates.</description>
     <licenses>
         <license>
             <name>Eclipse Foundation Specification License (EFSL)</name>
@@ -20,14 +23,6 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
     </properties>
-    <dependencies>
-        <dependency>
-            <groupId>jakarta.enterprise</groupId>
-            <artifactId>jakarta.enterprise.cdi-api</artifactId>
-            <version>4.1.0</version>
-            <scope>provided</scope>
-        </dependency>
-    </dependencies>
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
         <resources>
@@ -36,4 +31,17 @@
             </resource>
         </resources>
     </build>
+    <dependencies>
+        <dependency>
+            <groupId>jakarta.ai</groupId>
+            <artifactId>jakarta-agentic-ai-api</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.platform</groupId>
+            <artifactId>jakarta.jakartaee-api</artifactId>
+            <version>10.0.0</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
 </project>
