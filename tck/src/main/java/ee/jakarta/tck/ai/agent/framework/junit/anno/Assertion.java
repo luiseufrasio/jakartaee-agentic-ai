@@ -54,4 +54,15 @@ public @interface Assertion {
      * @return the test strategy description
      */
     String strategy() default "";
+
+    /**
+     * The specification section that this assertion verifies.
+     * Maps TCK failures directly to specific chapters or sections
+     * of the specification.
+     *
+     * <p>Example: {@code "Section 3.2: Agent Lifecycle"}
+     *
+     * @return the specification section reference
+     */
+    String section() default "";
 }
