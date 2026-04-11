@@ -117,6 +117,13 @@
                         <include>**/*Tests.java</include>
                         <include>**/*Test.java</include>
                     </includes>
+                    <!--
+                        By default only @Standalone-tagged tests run. Deployed
+                        behavioral tests require a Jakarta EE container and an
+                        Arquillian adapter; activate the "deployed" profile to
+                        include them.
+                    -->
+                    <groups>standalone</groups>
                 </configuration>
                 <executions>
                     <execution>
@@ -144,6 +151,26 @@
     </build>
 
     <profiles>
+        <!--
+            Profile for running behavioral (deployed) tests in addition to
+            the default standalone tests. Requires a Jakarta EE container
+            and an Arquillian adapter on the runtime classpath.
+        -->
+        <profile>
+            <id>deployed</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <groups>standalone,deployed</groups>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <!-- Profile for generating API signature files -->
         <profile>
             <id>signature-generation</id>

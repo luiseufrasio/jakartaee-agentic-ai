@@ -14,7 +14,9 @@ package ee.jakarta.tck.ai.agent.framework.stub;
 
 import jakarta.ai.agent.LLMException;
 import jakarta.ai.agent.LargeLanguageModel;
+import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Alternative;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,6 +50,8 @@ import java.util.function.Function;
  * assertEquals("Say hello", stub.getCallRecords().get(0).prompt());
  * }</pre>
  */
+@Alternative
+@Priority(1)
 @ApplicationScoped
 public class StubLargeLanguageModel implements LargeLanguageModel {
 
