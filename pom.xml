@@ -55,6 +55,13 @@
         </developer>
     </developers>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>payara-nexus-snapshots</id>
+            <url>https://nexus.dev.payara.fish/repository/payara-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
+
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
         <spec.version>1.0</spec.version>
