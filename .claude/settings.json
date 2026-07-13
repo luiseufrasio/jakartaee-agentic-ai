@@ -1,0 +1,15 @@
+{
+  "env": {
+    "CLAUDE_CODE_USE_VERTEX": "0"
+  },
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:hub.docker.com)"
+    ],
+    "defaultMode": "default"
+  },
+  "model": "claude-opus-4-7",
+  "alwaysThinkingEnabled": true,
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "light"
+}

@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jakarta Agentic AI — Slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Payara palette — extracted from payara.fish frontend.css */
+:root{
+  --orange:#ee992f; --orange-soft:#f6a844; --orange-subtle:#fcebd5;
+  --navy:#001b27; --navy-2:#00131b; --navy-3:#0a2a3a; --navy-soft:#12384c;
+  --ink:#e8edf0; --muted:#9fb2bc; --faint:#6d8794;
+  --ok:#5ad18a; --bad:#ff7b87;
+  --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",Consolas,monospace;
+}
+*{box-sizing:border-box} html,body{height:100%}
+body{margin:0;background:var(--navy-2);font-family:var(--sans);color:var(--ink);overflow:hidden}
+
+#stage{position:absolute;top:50%;left:50%;width:1280px;height:720px;transform-origin:center;transform:translate(-50%,-50%) scale(1)}
+.slide{position:absolute;inset:0;padding:64px 84px;display:none;flex-direction:column;background:
+  radial-gradient(1100px 600px at 85% -10%, rgba(238,153,47,.09), transparent 60%),
+  linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 70%)}
+.slide.active{display:flex;animation:slidein .3s ease}
+@keyframes slidein{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+
+/* header pattern */
+.kicker{font-size:15px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--orange);margin:0 0 10px;display:flex;align-items:center;gap:10px}
+.kicker::before{content:"";width:26px;height:3px;background:var(--orange);border-radius:2px}
+h2{font-size:40px;margin:0 0 26px;font-weight:700;letter-spacing:-.5px;line-height:1.15}
+h2 em{color:var(--orange);font-style:normal}
+p,li{font-size:21px;line-height:1.55;color:var(--ink)}
+li{margin:9px 0}
+ul,ol{margin:0;padding-left:30px}
+li::marker{color:var(--orange);font-weight:700}
+strong{color:#fff}
+.muted{color:var(--muted)} .small{font-size:16.5px} .xsmall{font-size:14px}
+code{font-family:var(--mono);font-size:.85em;background:rgba(255,255,255,.08);padding:2px 7px;border-radius:6px;color:#ffd9a8}
+
+/* code panels */
+pre{background:rgba(0,0,0,.42);border:1px solid var(--navy-soft);border-radius:14px;padding:20px 24px;margin:0;overflow:hidden}
+pre code{background:none;padding:0;color:#dce7ec;font-size:16px;line-height:1.55;display:block;white-space:pre}
+pre.sm code{font-size:13.5px;line-height:1.5}
+.tok-kw{color:#7fc8ef;font-weight:500}.tok-ann{color:var(--orange);font-weight:600}
+.tok-str{color:#a8d977}.tok-cmt{color:#6d8794;font-style:italic}.tok-num{color:#f2b8d0}
+.tok-key{color:#7fc8ef}.tok-val{color:#a8d977}
+.panel-label{font-family:var(--mono);font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--faint);margin:0 0 8px}
+
+/* layout helpers */
+.cols{display:flex;gap:34px;flex:1;min-height:0}
+.col{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px}
+.center{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;flex:1}
+.grow{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0}
+/* when a row of columns must also fill height, keep it a ROW (grow alone forces column) */
+.cols.grow{flex-direction:row;justify-content:flex-start;align-items:stretch}
+
+/* cards & chips */
+.card{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:20px 24px}
+.card h3{margin:0 0 8px;font-size:20px;color:var(--orange)}
+.card p,.card li{font-size:17px;margin:0}
+.card ul{margin-top:6px}
+.chip{display:inline-block;background:rgba(238,153,47,.15);border:1px solid rgba(238,153,47,.4);color:var(--orange-soft);border-radius:100px;padding:5px 16px;font-size:15px;font-weight:600;margin:4px 6px 4px 0}
+.check{color:var(--ok);font-weight:700} .cross{color:var(--bad);font-weight:700}
+
+/* tables */
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:17px;border:1px solid rgba(255,255,255,.14);border-radius:12px;overflow:hidden}
+th{background:rgba(238,153,47,.16);color:var(--orange-soft);text-align:left;padding:10px 16px;font-size:14.5px;letter-spacing:.5px;text-transform:uppercase}
+td{padding:10px 16px;border-top:1px solid rgba(255,255,255,.09);vertical-align:top}
+td code{white-space:nowrap}
+
+/* phase flow diagram */
+.flow{display:flex;align-items:center;gap:14px;justify-content:center;margin:26px 0}
+.fbox{border-radius:14px;padding:20px 26px;text-align:center;font-family:var(--mono);font-size:20px;font-weight:600;border:2px solid transparent}
+.fbox small{display:block;font-family:var(--sans);font-weight:400;font-size:13px;margin-top:8px;color:rgba(0,0,0,.55)}
+.f-trigger{background:var(--orange);color:var(--navy)}
+.f-mid{background:#e8edf0;color:var(--navy)}
+.f-out{background:#7fc8ef;color:var(--navy)}
+.farrow{font-size:30px;color:var(--orange);font-weight:700}
+.fexc{margin:10px auto 0;text-align:center;font-family:var(--mono);font-size:17px;color:var(--bad);background:rgba(255,123,135,.1);border:1.5px dashed rgba(255,123,135,.5);border-radius:12px;padding:12px 30px;width:fit-content}
+
+/* footer */
+.foot{position:absolute;bottom:26px;left:84px;right:84px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--faint);font-family:var(--mono)}
+.foot .logo{display:flex;gap:8px;align-items:center;font-family:var(--sans);font-weight:600;color:var(--muted)}
+.foot .logo b{color:var(--orange)}
+
+/* title slide */
+.s-title .bigfish{margin-bottom:34px}
+.s-title h1{font-size:64px;margin:0 0 18px;font-weight:700;letter-spacing:-1.5px;line-height:1.08}
+.s-title h1 em{color:var(--orange);font-style:normal}
+.s-title .sub{font-size:24px;color:var(--muted);margin:0 0 40px;max-width:820px}
+.s-title .meta{font-size:17px;color:var(--faint);font-family:var(--mono)}
+.s-title .meta b{color:var(--ink);font-weight:600}
+
+/* section divider slides */
+.s-div .center h2{font-size:56px}
+.s-div .secnum{font-family:var(--mono);font-size:120px;font-weight:600;color:rgba(238,153,47,.18);line-height:1;margin-bottom:6px}
+
+/* quote slide */
+.quote{font-size:40px;font-weight:600;line-height:1.35;max-width:980px;letter-spacing:-.5px}
+.quote em{color:var(--orange);font-style:normal}
+
+/* chrome: progress + counter + help */
+#bar{position:fixed;bottom:0;left:0;height:5px;background:linear-gradient(90deg,var(--orange),#ffbf69);width:0;z-index:10;transition:width .2s}
+#counter{position:fixed;bottom:14px;right:20px;font-family:var(--mono);font-size:13px;color:var(--faint);z-index:10}
+#help{position:fixed;top:14px;right:20px;font-family:var(--mono);font-size:12px;color:rgba(255,255,255,.25);z-index:10}
+body.overview #stage{display:none}
+#grid{display:none}
+body.overview #grid{display:grid;position:fixed;inset:0;overflow-y:auto;grid-template-columns:repeat(4,1fr);gap:14px;padding:20px;z-index:20;background:var(--navy-2)}
+#grid .thumb{position:relative;aspect-ratio:16/9;border:1.5px solid rgba(255,255,255,.15);border-radius:10px;overflow:hidden;cursor:pointer;background:var(--navy)}
+#grid .thumb:hover{border-color:var(--orange)}
+#grid .thumb .t-label{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;padding:10px;text-align:center}
+#grid .thumb .t-num{font-family:var(--mono);font-size:12px;color:var(--orange)}
+#grid .thumb .t-title{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.3}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="grid"></div>
+<div id="bar"></div><div id="counter"></div>
+<div id="help">← → navigate · O overview · F fullscreen</div>
+
+<script>
+/* ── tiny highlighter (same as tutorial) ── */
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function hlJava(src){
+  const re=/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\])*")|(@[A-Za-z_]\w*)|\b(public|private|protected|abstract|class|interface|record|enum|extends|implements|return|void|new|if|else|for|while|switch|case|default|try|catch|finally|throw|throws|import|package|static|final|volatile|boolean|int|long|double|float|null|true|false|this|var|instanceof)\b|((?<![\w.])\d[\d_]*(?:\.\d+)?)/g;
+  let out='',last=0,m;
+  while((m=re.exec(src))){out+=esc(src.slice(last,m.index));
+    const c=m[1]?'cmt':m[2]?'str':m[3]?'ann':m[4]?'kw':'num';
+    out+='<span class="tok-'+c+'">'+esc(m[0])+'</span>';last=m.index+m[0].length;}
+  return out+esc(src.slice(last));
+}
+function hlProps(src){return src.split('\n').map(l=>{
+  if(/^\s*#/.test(l))return '<span class="tok-cmt">'+esc(l)+'</span>';
+  const i=l.indexOf('=');if(i<0)return esc(l);
+  return '<span class="tok-key">'+esc(l.slice(0,i))+'</span>=<span class="tok-val">'+esc(l.slice(i+1))+'</span>';}).join('\n');}
+function java(code,sm){return '<pre'+(sm?' class="sm"':'')+'><code>'+hlJava(code)+'</code></pre>';}
+function props(code,sm){return '<pre'+(sm?' class="sm"':'')+'><code>'+hlProps(code)+'</code></pre>';}
+function txt(code,sm){return '<pre'+(sm?' class="sm"':'')+'><code>'+esc(code)+'</code></pre>';}
+
+const fish='<svg width="86" height="86" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="8" fill="#ee992f"/><path d="M6 17c3.2-4.6 7.6-7 12.2-7 3.4 0 6.6 1.3 9.3 3.8l-2.3 3.2 2.3 3.2c-2.7 2.5-5.9 3.8-9.3 3.8-4.6 0-9-2.4-12.2-7z" fill="#001b27"/><circle cx="22.6" cy="15.4" r="1.5" fill="#ee992f"/></svg>';
+
+/* ═══════════════════ SLIDES ═══════════════════ */
+const slides = [];
+function S(title, html, cls){ slides.push({title, html, cls: cls||''}); }
+
+/* 1 — Title */
+S('Title', `
+<div class="center s-title-inner">
+  <div class="bigfish">${fish}</div>
+  <h1>Jakarta <em>Agentic AI</em></h1>
+  <p class="sub">A vendor-neutral Jakarta EE specification for building AI agents —
+  and its first implementation, inside Payara Server.</p>
+  <p class="meta"><b>Luís Eufrásio</b> · Payara Conference · August 2026</p>
+</div>`, 's-title');
+
+/* 2 — Agenda */
+S('Agenda', `
+<p class="kicker">Agenda</p>
+<h2>Where we are going</h2>
+<div class="cols grow"><div class="col">
+  <div class="card"><h3>1 · The problem</h3><p>Every Java AI framework speaks its own dialect</p></div>
+  <div class="card"><h3>2 · The specification</h3><p>Agents as CDI beans, a workflow of phases, one LLM facade</p></div>
+  <div class="card"><h3>3 · Demo — Quickstart</h3><p>Four phases live, on a free local model (Ollama)</p></div>
+</div><div class="col">
+  <div class="card"><h3>4 · Inside the implementation</h3><p>The CDI extension and the WorkflowEngine in Payara</p></div>
+  <div class="card"><h3>5 · Demo — Tutorial Generator</h3><p>Chat refinement with Claude — swap providers with one file</p></div>
+  <div class="card"><h3>6 · TCK &amp; the road ahead</h3><p>How compatibility is proven; what 2.0 may bring</p></div>
+</div></div>`);
+
+/* 3 — The problem */
+S('The problem', `
+<p class="kicker">The problem</p>
+<h2>Everyone wants agents.<br>Java gives you <em>five ways to get locked in</em>.</h2>
+<div class="grow"><ul>
+  <li><strong>Vendor lock-in</strong> — switching the LLM provider or framework means rewriting agent code</li>
+  <li><strong>No container integration</strong> — DI, scopes, events, validation, transactions… reinvented per framework</li>
+  <li><strong>Ad-hoc workflows</strong> — every app builds its own state machine around the LLM calls</li>
+</ul>
+<p class="muted" style="margin-top:26px">LangChain4j, Spring AI, Semantic Kernel… all excellent — all <strong>proprietary programming models</strong>.</p>
+</div>`);
+
+/* 4 — Quote */
+S('The pitch', `
+<div class="center">
+  <p class="quote">“What would the <em>Jakarta Persistence</em><br>of AI agents look like?”</p>
+  <p class="muted" style="margin-top:30px;font-size:20px">Program against a standard API.<br>Let the server provide the engine and the provider.</p>
+</div>`, 's-div');
+
+/* 5 — LangChain4j swap */
+S('Swap: LangChain4j', `
+<p class="kicker">Switching GPT → Claude</p>
+<h2>World 1 — LangChain4j: <em>recompile</em></h2>
+<div class="cols grow">
+  <div class="col"><p class="panel-label">Before — pom: langchain4j-open-ai</p>
+  ${java(`ChatModel model = OpenAiChatModel.builder()
+    .apiKey(System.getenv("OPENAI_API_KEY"))
+    .modelName("gpt-4o")
+    .build();`)}</div>
+  <div class="col"><p class="panel-label">After — pom: langchain4j-anthropic</p>
+  ${java(`ChatModel model = AnthropicChatModel.builder()
+    .apiKey(System.getenv("ANTHROPIC_API_KEY"))
+    .modelName("claude-opus-4-8")
+    .build();`)}</div>
+</div>
+<p class="small muted" style="margin-top:20px">New dependency + new wiring code + rebuild + redeploy. The abstraction belongs to <strong>one vendor's library</strong> — not to a standard.</p>`);
+
+/* 6 — Spring AI swap */
+S('Swap: Spring AI', `
+<p class="kicker">Switching GPT → Claude</p>
+<h2>World 2 — Spring AI: <em>swap the starter</em></h2>
+<div class="grow">
+${txt(`pom.xml:      spring-ai-starter-model-openai  →  spring-ai-starter-model-anthropic
+properties:   spring.ai.openai.*              →  spring.ai.anthropic.*`)}
+<ul style="margin-top:26px">
+  <li><span class="check">✓</span> The <code>ChatClient</code> code can stay the same — fair to acknowledge</li>
+  <li><span class="cross">✗</span> Still an application <strong>rebuild</strong></li>
+  <li><span class="cross">✗</span> The abstraction only exists <strong>inside Spring</strong> — single implementation</li>
+  <li><span class="cross">✗</span> No spec, no TCK guaranteeing portable behavior</li>
+</ul></div>`);
+
+/* 7 — Jakarta swap */
+S('Swap: Jakarta Agentic AI', `
+<p class="kicker">Switching GPT → Claude</p>
+<h2>World 3 — Jakarta Agentic AI: <em>edit one file</em></h2>
+<div class="cols grow">
+  <div class="col"><p class="panel-label">Agent code — no vendor anywhere</p>
+  ${java(`@Agent
+public class QuestionAgent {
+
+  @Inject
+  LargeLanguageModel model;  // jakarta.ai.agent
+
+  @Action
+  void generate(Question q, AnswerStore out) {
+    out.put(q.text(),
+      model.query("Answer concisely: {}", q.text()));
+  }
+}`,true)}</div>
+  <div class="col"><p class="panel-label">microprofile-config.properties — the whole migration</p>
+  ${props(`# BEFORE
+payara.agentic.llm.provider=ollama
+payara.agentic.llm.model=gemma3:4b
+
+# AFTER
+payara.agentic.llm.provider=anthropic
+payara.agentic.llm.model=claude-opus-4-8`)}
+  <p class="small muted">Zero code changes · zero pom changes<br>(the provider backend lives in the <strong>server</strong>, not the WAR)</p></div>
+</div>`);
+
+/* 8 — Spec at a glance */
+S('The spec at a glance', `
+<p class="kicker">The specification</p>
+<h2>Small API, real spec</h2>
+<div class="cols grow">
+<div class="col">
+  <table>
+    <tr><th>Module</th><th>Contents</th></tr>
+    <tr><td><code>api/</code></td><td>7 annotations · 1 interface · 1 record · 1 exception</td></tr>
+    <tr><td><code>spec/</code></td><td>Specification document (AsciiDoc)</td></tr>
+    <tr><td><code>tck/</code></td><td>Compatibility tests, tied to requirements</td></tr>
+    <tr><td><code>examples/</code></td><td>Usage examples</td></tr>
+  </table>
+</div>
+<div class="col">
+  <div class="card"><h3>Design decisions</h3><ul>
+    <li><strong>CDI-first</strong> — agents are beans, triggers are CDI events</li>
+    <li><strong>JSON-B</strong> for serialization — portable across vendors</li>
+    <li>Java 17 · Jakarta EE 10 · CDI 4.1</li>
+    <li>Minimal LLM facade — JPA-style provider evolution</li>
+  </ul></div>
+</div></div>`);
+
+/* 9 — Phase model */
+S('The phase model', `
+<p class="kicker">The specification</p>
+<h2>A workflow of <em>phases</em></h2>
+<div class="grow">
+<div class="flow">
+  <div class="fbox f-trigger">@Trigger<small>required · exactly 1<br>CDI event</small></div><div class="farrow">→</div>
+  <div class="fbox f-mid">@Decision<small>0..N · may stop<br>the workflow</small></div><div class="farrow">→</div>
+  <div class="fbox f-mid">@Action<small>0..N · the<br>real work</small></div><div class="farrow">→</div>
+  <div class="fbox f-out">@Outcome<small>0..1 · void ·<br>ends the context</small></div>
+</div>
+<div class="fexc">@HandleException — catches exceptions from ANY phase</div>
+<ul style="margin-top:30px">
+  <li>Decisions &amp; actions <strong>intermix freely</strong> — serial gates, not if/else trees</li>
+  <li>Data flows between phases <strong>by type</strong> — no manual parameter passing</li>
+  <li>One <code>@WorkflowScoped</code> context wraps every run — created and destroyed by the container</li>
+</ul></div>`);
+
+/* 10 — Complete agent */
+S('A complete agent', `
+<p class="kicker">The specification</p>
+<h2>A complete agent fits on one slide</h2>
+${java(`@Agent(name = "QuestionAgent", description = "Answers a question with the configured LLM.")
+public class QuestionAgent {
+
+    @Inject LargeLanguageModel model;
+    @Inject AnswerStore answers;
+
+    @Trigger
+    void onQuestion(@Valid Question question) { }                       // entry: CDI event
+
+    @Decision
+    Result hasContent(Question q) {                                     // gate
+        return new Result(q.text() != null && !q.text().isBlank(), q);
+    }
+
+    @Action
+    void generate(Question q) {                                         // the work
+        answers.put(q.text(), model.query("Answer concisely: {}", q.text()));
+    }
+
+    @Outcome
+    void complete(Question q) { }                                       // closure
+}`,true)}`);
+
+/* 11 — Scopes */
+S('Two scopes', `
+<p class="kicker">The specification</p>
+<h2>Two scopes — and <em>only</em> two</h2>
+<table style="margin-bottom:22px">
+  <tr><th></th><th>@WorkflowScoped (default)</th><th>@ApplicationScoped</th></tr>
+  <tr><td><strong>Instance</strong></td><td>New per execution — dies after the outcome</td><td>One, shared, app lifetime</td></tr>
+  <tr><td><strong>Fields</strong></td><td>Private scratchpad, no locking needed</td><td>Shared — must be thread-safe</td></tr>
+  <tr><td><strong>Plain <code>@Observes</code></strong></td><td><span class="cross">✗ deployment error</span></td><td><span class="check">✓ allowed</span></td></tr>
+</table>
+<div class="card"><h3>Why not request / session / dependent?</h3>
+<p class="small">Triggers fire from timers, batches, messages — no HTTP there. Agents are never injected, so <code>@Dependent</code> has no owner. The only real question is: is field state <strong>per run</strong> or <strong>shared</strong>? Two answers → two scopes.</p></div>
+<p class="small muted" style="margin-top:14px">Either way: the <strong>LLM conversation is always per workflow</strong> — even on a singleton agent.</p>`);
+
+/* 12 — Trigger */
+S('@Trigger returns data', `
+<p class="kicker">The specification</p>
+<h2>@Trigger can <em>produce data</em> for the workflow</h2>
+<div class="cols grow">
+<div class="col">${java(`@Trigger
+ClaimAnalysis analyzeClaim(InsuranceClaim claim,
+                           LargeLanguageModel llm) {
+  return llm.query(
+    "Classify this claim (severity, category)" +
+    " as JSON: {}",
+    ClaimAnalysis.class, claim);
+}
+
+@Decision
+boolean needsAdjuster(ClaimAnalysis analysis) {
+  return analysis.severity() > 3;
+}`,true)}</div>
+<div class="col">
+<p class="panel-label">Workflow context after the trigger</p>
+${txt(`WorkflowContext
+├── InsuranceClaim   ← the CDI event (always added)
+└── ClaimAnalysis    ← the trigger's return value`)}
+<div class="card" style="margin-top:14px"><p class="small">Later phases declare <strong>whichever they want, by type</strong>. The same mechanism carries <code>@Decision</code> and <code>@Action</code> returns forward.</p></div>
+</div></div>`);
+
+/* 13 — Decision patterns */
+S('@Decision patterns', `
+<p class="kicker">The specification</p>
+<h2>@Decision — three return patterns</h2>
+<table style="margin-bottom:24px">
+  <tr><th>Return</th><th>Proceeds if…</th><th>Data propagated</th></tr>
+  <tr><td><code>boolean</code></td><td><code>true</code></td><td>nothing — a pure gate</td></tr>
+  <tr><td><code>Result</code></td><td><code>success() == true</code></td><td>the <code>details()</code> enters the context</td></tr>
+  <tr><td>Domain object</td><td>non-null</td><td>the object itself enters the context</td></tr>
+</table>
+<div class="card"><h3>Termination is a feature</h3>
+<p class="small"><code>false</code> / <code>Result(false, …)</code> / <code>null</code> ⇒ the workflow <strong>stops cleanly</strong>: remaining phases and the <code>@Outcome</code> never run. Not an error — an early exit. <em>(And no rollback of side effects — bring your own <code>@Transactional</code>.)</em></p></div>`);
+
+/* 14 — Decision chain */
+S('Decision chains', `
+<p class="kicker">The specification</p>
+<h2>Decisions chain as <em>serial gates</em></h2>
+<div class="cols grow">
+<div class="col">${java(`@Decision  // GATE 1: cheap, publishes PolicyCheck
+Result withinPolicy(LoanApplication app,
+                    PolicyService policies) {
+  PolicyCheck p = policies.check(app);
+  return new Result(p.approved(), p);
+}
+
+@Decision  // GATE 2: consumes gate 1's data
+RiskAssessment assessRisk(LoanApplication app,
+        PolicyCheck policy, LargeLanguageModel llm) {
+  RiskAssessment r = llm.query("Assess risk: {}"
+      + " within: {}", RiskAssessment.class,
+      app, policy);
+  return r.score() < 700 ? null : r;  // null = stop
+}`,true)}</div>
+<div class="col">
+<p class="panel-label">Context, gate by gate</p>
+${txt(`Trigger        ctx: [LoanApplication]
+withinPolicy ✔ ctx: [ …, PolicyCheck]
+assessRisk   ✔ ctx: [ …, RiskAssessment]
+prepareOffer   ctx: [ …, LoanOffer]
+offerViable  ✔ (boolean: publishes nothing)
+send           consumes LoanOffer`,true)}
+<div class="card" style="margin-top:12px"><p class="small">Gates talk <strong>through the context, by type</strong> — never by calling each other. Any gate failing cuts off everything after it.</p></div>
+</div></div>`);
+
+/* 15 — Ordering */
+S('Phase ordering', `
+<p class="kicker">The specification</p>
+<h2>Who runs first? Three rules, one consistency law</h2>
+<div class="grow">
+<ol style="font-size:22px">
+  <li><code>@Priority</code> on the method — lower first, <strong>beats</strong> <code>order()</code></li>
+  <li>The annotation's <code>order()</code> attribute — lower first</li>
+  <li><strong>Source declaration order</strong> — when nothing is explicit<br>
+      <span class="small muted">(reflection doesn't guarantee it — mainstream JVMs preserve it; Payara reads the <code>.class</code> methods table)</span></li>
+</ol>
+<div class="card" style="margin-top:26px"><h3>Consistency law</h3>
+<p class="small">If <strong>any</strong> decision/action declares explicit ordering, <strong>all</strong> must — mixing is a <code>DefinitionException</code> at deployment. Tip: use steps of 10, avoid <code>order = 0</code> (it is the default).</p></div>
+</div>`);
+
+/* 16 — HandleException */
+S('@HandleException', `
+<p class="kicker">The specification</p>
+<h2>@HandleException — recovery <em>with semantics</em></h2>
+<div class="cols grow">
+<div class="col">${java(`// recovery: return normally ⇒ workflow continues
+@HandleException
+void onTimeout(GatewayTimeoutException ex,
+               PaymentRequest req, RetryQueue rq) {
+  rq.enqueue(req);
+  // @Outcome still runs as closure
+}
+
+// fatal: rethrow ⇒ workflow stops
+@HandleException
+void onPaymentError(PaymentException ex,
+                    AuditLog audit) {
+  audit.paymentFailed(ex);
+  throw ex;
+}`,true)}</div>
+<div class="col"><ul class="small" style="font-size:17px">
+  <li><strong>Most specific type wins</strong> — hierarchy, not declaration order</li>
+  <li>Handlers receive the exception <strong>+ workflow state + CDI beans</strong></li>
+  <li>Return normally = recovered ⇒ <strong>@Outcome runs</strong></li>
+  <li>Throw = stop ⇒ exception reaches the container</li>
+  <li><strong>No recursive handling</strong> — a handler's own exception is never re-dispatched</li>
+  <li>An <code>Error</code> matches no <code>Exception</code> handler — straight to the container</li>
+</ul></div></div>`);
+
+/* 17 — Transactions */
+S('Transactions', `
+<p class="kicker">The specification · Q&amp;A favorite</p>
+<h2>Undo side effects? Wrap the workflow in <em>your</em> transaction</h2>
+<div class="cols grow">
+<div class="col">${java(`@POST
+@Transactional        // wraps the ENTIRE workflow
+public Response apply(LoanApplication app) {
+  trigger.fire(app);  // synchronous: all phases
+  return Response.ok().build();
+}`,true)}
+${java(`@Decision
+boolean offerViable(LoanOffer offer) {
+  if (offer.rate() >= MAX_LEGAL_RATE)
+    // NOT "return false" — that COMMITS!
+    throw new OfferRejectedException(offer);
+  return true;
+}`,true)}</div>
+<div class="col"><ul class="small" style="font-size:17px">
+  <li>Works because <code>Event.fire</code> is <strong>synchronous</strong> and observers run in the caller's transaction</li>
+  <li><strong>Early termination is normal completion ⇒ commit.</strong> Rollback needs an exception that <em>crosses</em> the engine</li>
+  <li>A handler that recovers ⇒ commit too — design handlers and transactions <strong>together</strong></li>
+  <li>Often better: move the gate before the side effect, or persist in <code>@Outcome</code></li>
+</ul>
+<p class="xsmall muted">1.0 doesn't define transactional semantics — this is the synchronous-execution consequence.</p></div></div>`);
+
+/* 18 — LLM facade */
+S('LargeLanguageModel', `
+<p class="kicker">The specification</p>
+<h2>One facade for every model</h2>
+<div class="cols grow">
+<div class="col">${java(`public interface LargeLanguageModel {
+  String query(String prompt);
+  <T> T   query(String prompt, Class<T> type);
+  String query(String prompt, Object... params);
+  <T> T   query(String prompt, Class<T> type,
+                Object... params);
+  <T> T   unwrap(Class<T> implClass);
+}`,true)}
+<p class="small muted"><code>unwrap()</code> = the JPA escape hatch for vendor extras.</p></div>
+<div class="col">${java(`llm.query("Classify this event: {}", event); // ✔
+llm.query("Classify this event", event);     // ✔ context
+llm.query("Compare {} with {}", a);          // ✘ IAE`,true)}
+<ul class="small" style="font-size:17px">
+  <li><code>{}</code> placeholders are positional; params serialized with <strong>JSON-B</strong></li>
+  <li>Typed responses: JSON → your record, or <code>LLMException</code></li>
+  <li><strong>Conversation is per workflow</strong> — isolated even on singleton agents</li>
+  <li><code>IllegalArgumentException</code> = your fault · <code>LLMException</code> = the service's fault</li>
+</ul></div></div>`);
+
+/* 19 — Demo 1 divider */
+S('Demo 1', `
+<div class="center">
+  <div class="secnum">DEMO 1</div>
+  <h2>Quickstart — the four phases, <em>live</em></h2>
+  <p class="muted" style="font-size:22px;margin-top:16px">One agent · REST POST fires a CDI event · local Ollama (gemma3:4b) — no network, no cost</p>
+  <div style="margin-top:34px">
+    <span class="chip">POST /api/ask → answer in the same response</span>
+    <span class="chip">server.log: [TRIGGER] → [DECISION] → [ACTION] → [OUTCOME]</span>
+    <span class="chip">empty question → early termination</span>
+  </div>
+</div>`, 's-div');
+
+/* 20 — Demo 1 flow */
+S('Quickstart flow', `
+<p class="kicker">Demo 1 · Quickstart</p>
+<h2>What just happened</h2>
+${txt(`AskResource.ask(request)
+  └─ trigger.fire(question)                 ← synchronous CDI event
+       └─ synthetic observer (Payara extension)
+            └─ WorkflowEngine.execute(...)
+                 ├─ activate @WorkflowScoped context (this thread)
+                 ├─ [TRIGGER]  onQuestion(question)
+                 ├─ [DECISION] hasContent → Result(true, question)
+                 ├─ [ACTION]   generate  → llm.query(...) → AnswerStore
+                 ├─ [OUTCOME]  complete
+                 └─ destroy context (finally — always)
+  └─ answers.get(text) → AskResponse JSON`)}
+<p class="small muted" style="margin-top:18px">The whole workflow, LLM call included, finishes <strong>before <code>fire()</code> returns</strong> — that is why the answer ships in the same HTTP response.</p>`);
+
+/* 21 — Impl divider */
+S('Inside Payara', `
+<div class="center">
+  <div class="secnum">INSIDE</div>
+  <h2>How Payara <em>implements</em> it</h2>
+  <p class="muted" style="font-size:22px;margin-top:16px">One portable CDI extension + one engine + pluggable LLM backends<br>— no bytecode magic, no proprietary SPI</p>
+</div>`, 's-div');
+
+/* 22 — Extension pipeline */
+S('The CDI extension', `
+<p class="kicker">Inside Payara · agentic-ai-core</p>
+<h2>The boot pipeline</h2>
+${txt(`Application deployment
+  ├─ ProcessAnnotatedType ──► processAgent()
+  │    • apply default @WorkflowScoped when no scope is declared
+  │    • REMOVE @Observes from the @Trigger method        ← the trick
+  │
+  ├─ ProcessManagedBean ──► watchForLlm()
+  │    • does the app supply its own LargeLanguageModel?
+  │
+  └─ AfterBeanDiscovery
+       • register the WorkflowScopeContext (@WorkflowScoped Context)
+       • one SYNTHETIC OBSERVER per agent  →  WorkflowEngine.execute(...)
+       • no app LLM?  register the default (backend from MicroProfile Config)`)}
+<p class="small muted" style="margin-top:16px">Structural mistakes (two triggers, two outcomes, mixed ordering…) fail the deployment with <code>DefinitionException</code> — <strong>fail fast</strong>.</p>`);
+
+/* 23 — Observes trick */
+S('The @Observes trick', `
+<p class="kicker">Inside Payara · the “aha!” moment</p>
+<h2>Why the extension <em>removes</em> @Observes</h2>
+<div class="cols grow">
+<div class="col">
+  <div class="card"><h3>If it stayed…</h3><ul>
+    <li>CDI would invoke the trigger <strong>directly</strong> — as a plain observer</li>
+    <li>No engine, no workflow context, no later phases</li>
+    <li>Plus the engine's own observer ⇒ <strong>trigger invoked twice</strong></li>
+  </ul></div>
+</div>
+<div class="col">
+  <div class="card"><h3>Removed ⇒</h3><ul>
+    <li>The <strong>synthetic observer</strong> becomes the single entry point</li>
+    <li>The workflow context wraps the <strong>entire run</strong></li>
+    <li><code>@Observes</code> still <em>declares intent</em> — the extension reads it to find the event type</li>
+  </ul></div>
+</div></div>
+<p class="small muted" style="margin-top:18px">Same pattern for the LLM: the default is <strong>self-vetoing</strong> — if the app supplies a <code>LargeLanguageModel</code> (like the TCK stub), Payara registers none. App LLM always wins ⇒ no <code>AmbiguousResolutionException</code>, and tests run with zero network.</p>`);
+
+/* 24 — Engine */
+S('WorkflowEngine', `
+<p class="kicker">Inside Payara</p>
+<h2>The engine: one call runs the whole workflow</h2>
+<div class="cols grow">
+<div class="col">${java(`workflowScopeManager.activate();
+ctx.add(triggerEvent);
+try {
+  agent = resolveBean(agentClass);
+  llm   = resolveBean(LargeLanguageModel.class);
+  ctx.add(invoke(trigger));
+  for (PhaseMethod p : sortedPhases) {
+    Object r = invoke(p);
+    if (p.isDecision()) {
+      if (!shouldContinue(r)) return;   // gate
+      publish(r);                       // details()
+    } else ctx.add(r);
+  }
+  invoke(outcome);
+} catch (Exception e) {
+  dispatchToHandler(e);   // most specific wins
+} finally {
+  workflowScopeManager.deactivate();    // ALWAYS
+}`,true)}</div>
+<div class="col"><ul class="small" style="font-size:17px">
+  <li>Runs <strong>on the caller's thread</strong> — sync by design</li>
+  <li>Parameter resolution: LLM → in-flight exception → context (newest first) → CDI bean</li>
+  <li>Bean Validation on phase parameters (when a provider is present)</li>
+  <li>Recovery runs <code>@Outcome</code> as closure — unless the outcome itself threw (<code>outcomeAttempted</code>)</li>
+  <li><code>@WorkflowScoped</code> = <strong>ThreadLocal</strong> context ⇒ free isolation between concurrent workflows, <code>@PreDestroy</code> on deactivate</li>
+</ul></div></div>`);
+
+/* 25 — Backends */
+S('LLM backends', `
+<p class="kicker">Inside Payara</p>
+<h2>Backends: the spec logic is written <em>once</em></h2>
+<div class="cols grow">
+<div class="col">${txt(`LargeLanguageModel  (spec)
+        ▲ implements
+LargeLanguageModelImpl
+  {} placeholders · JSON-B · history
+        │ delegates
+        ▼
+LlmBackend  chat(system, turns) → text
+  ├─ NoOpLlmBackend       (default)
+  ├─ OllamaLlmBackend     (local, free)
+  ├─ AnthropicLlmBackend  (Claude API)
+  └─ VertexLlmBackend     (Claude on GCP)`,true)}</div>
+<div class="col">
+  <ul class="small" style="font-size:17px">
+    <li>Selected via MicroProfile Config: <code>payara.agentic.llm.*</code></li>
+    <li>Unknown provider → NoOp (never a failed deploy) · Anthropic w/o key → fail fast with the exact fix</li>
+    <li>Anthropic backend = raw <code>HttpClient</code> + JSON-B — <strong>no SDK</strong>, to avoid OSGi classloader clashes</li>
+    <li><strong>Prompt caching</strong>: the config's system prompt ships with <code>cache_control</code> — the stable prefix is reused across phases</li>
+    <li>Failed call ⇒ the user turn is <strong>rolled back</strong> from history</li>
+  </ul>
+</div></div>`);
+
+/* 26 — Demo 2 divider */
+S('Demo 2', `
+<div class="center">
+  <div class="secnum">DEMO 2</div>
+  <h2>Tutorial Generator — <em>refine by chat</em></h2>
+  <p class="muted" style="font-size:22px;margin-top:16px">An agent writes a field-by-field guide for a real web form — then edits it on instruction, with Claude</p>
+  <div style="margin-top:34px">
+    <span class="chip">generate → refine → refine one field</span>
+    <span class="chip">the event carries the mode (currentHtml null ⇒ generate)</span>
+    <span class="chip">the artifact travels in the prompt — not just memory</span>
+  </div>
+</div>`, 's-div');
+
+/* 27 — TG design */
+S('Tutorial Generator design', `
+<p class="kicker">Demo 2 · Tutorial Generator</p>
+<h2>The design ideas worth stealing</h2>
+<div class="cols grow"><div class="col">
+  <div class="card"><h3>Single source of truth</h3><p class="small"><code>CustomerFormSpec</code> renders the live form <em>and</em> feeds the agent — they cannot diverge</p></div>
+  <div class="card"><h3>The event carries the mode</h3><p class="small"><code>TutorialRequest(formSpec, instruction, currentHtml)</code> — null html ⇒ generate; filled ⇒ refine. One agent, two behaviors</p></div>
+</div><div class="col">
+  <div class="card"><h3>Edit the artifact, not the memory</h3><p class="small">Each chat turn sends <em>current guide + instruction</em> — the model revises real state</p></div>
+  <div class="card"><h3>Defensive LLM handling</h3><p class="small"><code>stripCodeFences</code> for stray \`\`\` · per-field refine merges back via JSON-P, limiting the blast radius</p></div>
+</div></div>
+<p class="small muted">Provider: Anthropic <code>claude-opus-4-8</code>, 8192 max tokens, system prompt from config = cache prefix. Fully local fallback: <code>ollama / gemma3:12b</code>.</p>`);
+
+/* 28 — TCK */
+S('The TCK', `
+<p class="kicker">Proving compatibility</p>
+<h2>A spec is real when it has a <em>TCK</em></h2>
+<div class="cols grow">
+<div class="col"><ul class="small" style="font-size:17px">
+  <li>Tests live in <code>src/main/java</code> — packaged for <strong>implementors</strong> to run</li>
+  <li><code>@Assertion(id, section, strategy)</code> ties every test to a spec requirement</li>
+  <li><code>@Standalone</code> (reflection) vs <code>@Deployed</code> (Arquillian)</li>
+  <li><code>LargeLanguageModelStub</code> scripts responses · <code>ExecutionTraceRecorder</code> asserts phase order</li>
+</ul></div>
+<div class="col">
+<p class="panel-label">Detecting an implementation — no flags, no config</p>
+${java(`!CDI.current().getBeanManager()
+     .getContexts(WorkflowScoped.class)
+     .isEmpty()`,true)}
+<div class="card" style="margin-top:12px"><p class="small">Every compatible implementation registers a <code>@WorkflowScoped</code> context; plain CDI doesn't. That context <strong>is the fingerprint</strong> — powering <code>@RequiresImplementation</code> / <code>@RequiresNoImplementation</code>.</p></div>
+</div></div>`);
+
+/* 29 — Roadmap */
+S('Roadmap', `
+<p class="kicker">The road ahead</p>
+<h2>What 1.0 holds back — <em>on purpose</em></h2>
+<div class="cols grow"><div class="col">
+  <div class="card"><h3>In 1.0</h3><ul>
+    <li>One trigger per agent · CDI events only</li>
+    <li>Linear gates (no if/else trees)</li>
+    <li>Provider config is implementation-specific</li>
+    <li>Synchronous execution</li>
+  </ul></div>
+</div><div class="col">
+  <div class="card"><h3>Candidates for next versions</h3><ul>
+    <li>Multiple triggers &amp; entry points</li>
+    <li>Messaging / REST / programmatic triggers</li>
+    <li>Standardized provider selection + common LLM properties (the JPA path)</li>
+    <li>Async orchestration · richer branching · multi-agent</li>
+  </ul></div>
+</div></div>`);
+
+/* 30 — Takeaways */
+S('Takeaways', `
+<p class="kicker">If you remember three things</p>
+<h2>Key takeaways</h2>
+<div class="grow" style="display:flex;flex-direction:column;gap:18px;justify-content:center">
+  <div class="card" style="display:flex;gap:20px;align-items:center"><div style="font-family:var(--mono);font-size:34px;color:var(--orange);font-weight:600">1</div>
+    <p style="font-size:20px;margin:0"><strong>Agents as CDI beans.</strong> The phase model turns “calling an LLM” into a container-managed workflow — scopes, injection, validation and error handling included.</p></div>
+  <div class="card" style="display:flex;gap:20px;align-items:center"><div style="font-family:var(--mono);font-size:34px;color:var(--orange);font-weight:600">2</div>
+    <p style="font-size:20px;margin:0"><strong>Real vendor neutrality.</strong> The agent never learns which LLM serves it — Ollama ↔ Claude ↔ Vertex is a properties file.</p></div>
+  <div class="card" style="display:flex;gap:20px;align-items:center"><div style="font-family:var(--mono);font-size:34px;color:var(--orange);font-weight:600">3</div>
+    <p style="font-size:20px;margin:0"><strong>A real spec.</strong> Executable TCK, assertion-mapped tests, and a complete implementation inside a production server — not a paper.</p></div>
+</div>`);
+
+/* 31 — Thanks */
+S('Thank you', `
+<div class="center">
+  <div class="bigfish" style="margin-bottom:30px">${fish}</div>
+  <h2 style="font-size:54px">Thank you! <em>Questions?</em></h2>
+  <p class="muted" style="font-size:21px;margin-top:22px">Jakarta Agentic AI — spec · TCK · Payara implementation · samples</p>
+  <p class="meta" style="margin-top:36px;font-family:var(--mono);font-size:16px;color:var(--faint)"><b style="color:var(--ink)">Luís Eufrásio</b> · Payara Conference · August 2026</p>
+</div>`, 's-title');
+
+/* ═══════════════════ ENGINE ═══════════════════ */
+const stage = document.getElementById('stage');
+slides.forEach((s, i) => {
+  const el = document.createElement('div');
+  el.className = 'slide ' + s.cls;
+  el.id = 'slide-' + (i + 1);
+  el.innerHTML = s.html + (s.cls.includes('s-title') ? '' :
+    '<div class="foot"><span class="logo">Jakarta <b>Agentic AI</b> · Payara Conference 2026</span><span>' + (i + 1) + ' / ' + slides.length + '</span></div>');
+  stage.appendChild(el);
+});
+
+/* overview grid */
+const grid = document.getElementById('grid');
+slides.forEach((s, i) => {
+  const t = document.createElement('div');
+  t.className = 'thumb';
+  t.innerHTML = '<div class="t-label"><span class="t-num">' + (i + 1) + '</span><span class="t-title">' + s.title + '</span></div>';
+  t.onclick = () => { document.body.classList.remove('overview'); go(i + 1); };
+  grid.appendChild(t);
+});
+
+let cur = 0;
+function go(n){
+  n = Math.min(Math.max(1, n), slides.length);
+  if(n === cur) return;
+  cur = n;
+  document.querySelectorAll('.slide').forEach((el, i) => el.classList.toggle('active', i === n - 1));
+  document.getElementById('bar').style.width = (n / slides.length * 100) + '%';
+  document.getElementById('counter').textContent = n + ' / ' + slides.length;
+  history.replaceState(null, '', '#' + n);
+}
+function fit(){
+  const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720) * 0.985;
+  stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+}
+window.addEventListener('resize', fit);
+
+window.addEventListener('keydown', e => {
+  if(e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); go(cur + 1); }
+  else if(e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(cur - 1); }
+  else if(e.key === 'Home') go(1);
+  else if(e.key === 'End') go(slides.length);
+  else if(e.key === 'o' || e.key === 'O') document.body.classList.toggle('overview');
+  else if(e.key === 'Escape') document.body.classList.remove('overview');
+  else if(e.key === 'f' || e.key === 'F'){
+    if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen();
+  }
+});
+document.addEventListener('click', e => {
+  if(document.body.classList.contains('overview')) return;
+  if(e.clientX > window.innerWidth * 0.7) go(cur + 1);
+  else if(e.clientX < window.innerWidth * 0.15) go(cur - 1);
+});
+
+fit();
+go(parseInt(location.hash.slice(1)) || 1);
+</script>
+</body>
+</html>
