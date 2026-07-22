@@ -21,7 +21,7 @@ const chapters = [
   { file: '06-payara-impl-engine.md',       short: 'Payara Impl: WorkflowEngine' },
   { file: '07-llm-backends.md',             short: 'LLM Backends & Config' },
   { file: '08-samples.md',                  short: 'The Samples' },
-  { file: '09-presentation-guide.md',       short: 'Presentation Playbook' },
+  { file: '09-presentation-guide.md',       short: 'Wrap-up & FAQ' },
 ];
 
 marked.setOptions({ gfm: true, breaks: false });
@@ -196,7 +196,7 @@ body{margin:0;font-family:var(--sans);color:var(--body);background:var(--light);
     <p>Spec · Payara implementation · Samples — with a quiz after every chapter.</p>
   </div>
   <nav id="chnav-list"></nav>
-  <div class="foot">Built for the Payara Conference talk · colors from <a href="https://payara.fish" target="_blank" rel="noopener">payara.fish</a></div>
+  <div class="foot">Colors from <a href="https://payara.fish" target="_blank" rel="noopener">payara.fish</a></div>
 </aside>
 
 <div id="main"><div id="content">
@@ -251,7 +251,7 @@ document.querySelectorAll('.chapter').forEach(section => {
     const banner = document.createElement('div');
     banner.className = 'quiz-banner';
     banner.innerHTML = '<div class="qb-ico">🎯</div><div><h2>'+quizH2.textContent+'</h2>'+
-      '<p>Answer in your head (or out loud — it is Q&amp;A rehearsal), then reveal and score yourself.</p></div>';
+      '<p>Answer in your head, then reveal and score yourself.</p></div>';
     quizH2.replaceWith(banner);
   }
 
@@ -348,7 +348,7 @@ function updateSummary(section){
     el.classList.add('show');
     el.querySelector('.big').textContent = s.right + '/' + s.total;
     el.querySelector('p').textContent = s.right === s.total
-      ? 'Perfect score — you are stage-ready for this chapter. 🎤'
+      ? 'Perfect score — you have this chapter down. ✅'
       : 'Quiz complete. Revisit the ✗ questions above before moving on.';
   }
 }

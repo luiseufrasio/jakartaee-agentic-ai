@@ -8,7 +8,7 @@ that encapsulates autonomous, goal-driven behavior: it **perceives** an event,
 **reasons** (typically by querying an LLM), **decides** whether and how to proceed,
 and **acts** — all inside a workflow with well-defined phases.
 
-The analogy that works well on stage: just as Jakarta Persistence standardized
+A helpful analogy: just as Jakarta Persistence standardized
 relational data access (you program against `EntityManager`, and Hibernate or
 EclipseLink implement it), Jakarta Agentic AI standardizes agent construction —
 you program against annotations and the `LargeLanguageModel` interface, and the
@@ -143,7 +143,7 @@ The project is a multi-module Maven build with four modules:
 
 ## Fundamental design decisions
 
-These are the decisions that generate the most questions — memorize the rationale:
+These are the decisions that generate the most questions — here is the rationale:
 
 1. **CDI-first.** The agent is a CDI bean; the trigger fires on CDI events
    (`Event.fire(...)`). Future versions may add other sources (Jakarta Messaging,

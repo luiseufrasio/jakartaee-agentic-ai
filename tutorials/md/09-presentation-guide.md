@@ -1,33 +1,29 @@
-# Chapter 9 — Presentation playbook (Payara conference, August 2026)
+# Chapter 9 — Wrap-up: running the samples and FAQ
 
-## Suggested narrative arc (45–60 min)
+## Recap: the whole story, end to end
 
-1. **The problem (5 min).** Everyone wants AI agents; in Java, every framework has
-   its own proprietary model. Hook: "what would the *Jakarta Persistence* of
-   agents look like?"
-2. **The spec (15 min).** The phase diagram
-   (`Trigger → Decision* → Action* → Outcome` + `HandleException`); a complete
-   agent on one slide (the `QuestionAgent` fits whole); the three `@Decision`
-   return patterns; the `LargeLanguageModel` facade with `{}` placeholders;
-   `@WorkflowScoped`.
-3. **Demo 1 — quickstart (10 min).** POST a real question → show
-   `[TRIGGER] → [DECISION] → [ACTION] → [OUTCOME]` in `server.log`; POST an empty
-   question → early termination live. Running on **local Ollama** (no network, no
-   cost — a conference-wifi-proof demo).
-4. **Inside the implementation (10 min).** The CDI extension pipeline (the
-   `@Observes` removal + synthetic observer is the "aha!" slide); the
-   `WorkflowEngine`; the `ThreadLocal` scope; the self-vetoing LLM (and how it
-   enables stub-based testing).
-5. **Demo 2 — tutorial generator (10 min).** Generate the form guide with Claude;
-   refine via chat ("make the business email explanation friendlier and add an
-   example"); refine a single field. Show that the Ollama↔Claude switch is **one
-   properties file**.
-6. **TCK and the spec's path (5 min).** How compatibility is proven; detecting the
-   implementation via the `@WorkflowScoped` context; what comes in 2.0 (multiple
+The pieces you have seen fit together like this:
+
+1. **The problem.** Everyone wants AI agents; in Java, every framework has its own
+   proprietary model. The guiding question: "what would the *Jakarta Persistence*
+   of agents look like?"
+2. **The spec.** The phase model (`Trigger → Decision* → Action* → Outcome` +
+   `HandleException`); a complete agent fits in one class (the `QuestionAgent`); the
+   three `@Decision` return patterns; the `LargeLanguageModel` facade with `{}`
+   placeholders; `@WorkflowScoped`.
+3. **The quickstart.** POST a real question → `[TRIGGER] → [DECISION] → [ACTION] →
+   [OUTCOME]` in `server.log`; POST an empty question → early termination. It runs
+   on **local Ollama** (no network, no cost).
+4. **Inside the implementation.** The CDI extension pipeline (the `@Observes`
+   removal + synthetic observer is the key insight); the `WorkflowEngine`; the
+   `ThreadLocal` scope; the self-vetoing LLM (which enables stub-based testing).
+5. **The tutorial generator.** Generate a form guide with Claude; refine it via
+   chat; refine a single field. Switching Ollama↔Claude is **one properties file**.
+6. **The TCK and the road ahead.** How compatibility is proven; detecting the
+   implementation via the `@WorkflowScoped` context; what may come next (multiple
    triggers, other event sources, standardized LLM config).
-7. **Q&A.**
 
-## Pre-demo technical checklist
+## Running the samples — checklist
 
 - [ ] Ollama installed, `ollama pull gemma3:4b` done, the service answering at
       `http://localhost:11434` (test: `ollama run gemma3:4b "hi"`).
@@ -38,15 +34,15 @@
       domain** (`$env:ANTHROPIC_API_KEY = "sk-ant-..."` before
       `asadmin restart-domain`) — the server process inherits its parent's
       environment.
-- [ ] Both WARs deployed and tested the day before AND on the morning of the talk.
-- [ ] `server.log` open in a big-font terminal (`Get-Content -Wait -Tail 0`).
-- [ ] Offline plan B: the quickstart on Ollama already covers the main demo; the
-      tutorial generator can fall back to `provider=ollama` / `model=gemma3:12b`
-      (pull the model beforehand!).
-- [ ] Requests prepared (no typing JSON live): a script/`.http` file with the
+- [ ] Both WARs deployed and tested.
+- [ ] `server.log` open in a terminal (`Get-Content -Wait -Tail 0`).
+- [ ] Fully-local option: the quickstart runs on Ollama; the tutorial generator
+      can also fall back to `provider=ollama` / `model=gemma3:12b` (pull the model
+      first).
+- [ ] Requests ready (no typing JSON by hand): a script/`.http` file with the
       valid POST, the empty POST and the refines.
 
-## Likely audience questions (and the answers)
+## Frequently asked questions
 
 **"How does this compare with LangChain4j / Spring AI?"**
 It does not compete — it standardizes. LangChain4j is an (excellent) single-vendor
@@ -81,17 +77,17 @@ another agent's trigger. First-class multi-agent orchestration is a topic for
 future versions.
 
 **"When does it ship? Is it official?"**
-Position it carefully: it is a specification proposal under development in the
-Jakarta EE ecosystem, with an API, a spec document, a TCK and a working
-implementation in Payara — the material of this talk. The roadmap (multiple
-triggers, standardized LLM config) is already documented in the API Javadocs.
+It is a specification proposal under development in the Jakarta EE ecosystem, with
+an API, a spec document, a TCK and a working implementation in Payara. The roadmap
+(multiple triggers, standardized LLM config) is already documented in the API
+Javadocs.
 
-**"Does it run locally? How much does the demo cost?"**
+**"Does it run locally? How much does it cost?"**
 Quickstart: Ollama + gemma3:4b, zero cost, zero network. Tutorial generator:
 Claude for HTML quality, with prompt caching to cut cost — but it runs on Ollama
 too.
 
-## Key messages (if the audience takes away only three things)
+## Key takeaways
 
 1. **Agents as CDI beans** — the phase model
    (`@Trigger/@Decision/@Action/@Outcome/@HandleException`) turns "calling an LLM"
@@ -139,9 +135,9 @@ immediate, deterministic feedback, instead of undefined behavior on the first
 production run — the same philosophy CDI applies to malformed beans.
 </details>
 
-**3.** Your tutorial generator demo fails at the conference: the guide comes back
-empty and the log shows `IllegalStateException: Anthropic provider selected but no
-API key found`. What was the operational mistake and what is the fix?
+**3.** The tutorial generator returns an empty guide and the log shows
+`IllegalStateException: Anthropic provider selected but no API key found`. What was
+the operational mistake and what is the fix?
 
 <details><summary>Show answer</summary>
 
@@ -152,9 +148,9 @@ the same shell (the server inherits the environment of whoever starts it). Plan 
 switch to `provider=ollama` in the microprofile-config.
 </details>
 
-**4.** An audience member claims: "this is just an annotation wrapper around an
-HTTP call to the LLM". Refute it with three concrete container capabilities the
-manual wrapper would not have.
+**4.** Someone claims: "this is just an annotation wrapper around an HTTP call to
+the LLM". Refute it with three concrete container capabilities the manual wrapper
+would not have.
 
 <details><summary>Show answer</summary>
 
@@ -169,7 +165,7 @@ guaranteed by the spec (plus the TCK to prove all of it).
 </details>
 
 **5.** In one sentence each, what is the role of: the spec API, the TCK,
-`agentic-ai-core`, the quickstart and the tutorial generator in your talk?
+`agentic-ai-core`, the quickstart and the tutorial generator in this tutorial?
 
 <details><summary>Show answer</summary>
 
@@ -183,5 +179,4 @@ refinement and production defensive practices.
 
 ---
 
-🏁 End of the tutorial. Review the quizzes you missed and run the demos. Good luck
-on stage! 🎤
+🏁 End of the tutorial. Review the quizzes you missed and run the samples yourself.

@@ -1,7 +1,7 @@
 # Chapter 2 — The programming model (the annotations)
 
 This chapter covers every type in the `jakarta.ai.agent` package with the exact
-rules of the spec — including the subtleties that tend to come up in Q&A.
+rules of the spec — including the subtleties that tend to trip people up.
 
 ## `@Agent` — declaring the agent
 
@@ -151,15 +151,14 @@ just refreshes the resource. The price is visible in the code: `volatile`,
 remember: even here, each ticket gets **its own workflow context** — the `llm`
 conversation in one ticket's `classify` never contaminates another's.
 
-**Rule of thumb for the talk:** *in-flight case* state in fields →
+**Rule of thumb:** *in-flight case* state in fields →
 `@WorkflowScoped` (the default exists for this); *expensive, shared* resources +
 the need for regular observers → `@ApplicationScoped`, with thread safety on you.
 
 ### Why only two scopes?
 
 The spec does not support `@RequestScoped`, `@SessionScoped`,
-`@ConversationScoped` or `@Dependent` for agents, and the rationale is defensible
-on stage:
+`@ConversationScoped` or `@Dependent` for agents, and the rationale is sound:
 
 1. **The agent's natural lifecycle is the workflow, not the request.** A trigger
    can fire from anywhere — a timer, a batch job, a message, another agent — where
@@ -363,7 +362,7 @@ The rules of the "conversation":
    separate the verdict (`success`) from the data (`details`) — including
    publishing data on a negative verdict handled through another path.
 
-⚠️ Q&A nuance: early termination **does not undo side effects** of phases that
+⚠️ Nuance: early termination **does not undo side effects** of phases that
 already ran. If `prepareOffer` had persisted the offer and `offerViable` returned
 `false`, the database row would still be there — the workflow stops, it does not
 roll back (unless you integrate it with a transaction of your own). How to do that

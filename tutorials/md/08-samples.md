@@ -1,8 +1,10 @@
 # Chapter 8 — The samples
 
-Two samples, two roles in the presentation: the **quickstart** teaches the
+Three samples, three levels: the **quickstart** teaches the
 programming model in 5 classes; the **tutorial generator** shows a real use case
-with a chat refinement loop.
+with a chat refinement loop; and the **Course Content Studio** raises the bar to
+**two agents chained by CDI events**, with a human approval gate in the middle and
+a final student-facing view.
 
 ---
 
@@ -123,7 +125,7 @@ POST /agentic-ai/api/tutorial/refine-field  refine ONE field and merge it back
 3. **Refinement passes the real artifact:** on every chat turn, the **current**
    guide + the instruction go into the prompt — the model edits the actual
    artifact instead of relying on conversational memory alone. (An important
-   agent-engineering pattern worth citing on stage.)
+   agent-engineering pattern worth remembering.)
 4. **Per-field refinement with a merge:** `refine-field` extracts only the target
    field's description (JSON-P), runs the workflow over that fragment, and
    **merges** the result back into the full guide — preserving the other fields
@@ -171,6 +173,121 @@ quality).
 `AgenticTutorialIT` — same pattern as the quickstart: `StubLargeLanguageModel` in
 the deployment, no live LLM. It asserts the form is exposed, the guide is
 generated, and a chat refinement produces a different result.
+
+---
+
+## Sample 3 — `course-content-studio` (education domain)
+
+📦 Repository: <https://github.com/luieufrasio/course-content-studio>
+
+**An advanced use case:** the teacher pastes a chapter's content and picks a
+subject (mathematics, physics, English); an agent generates an **introduction, a
+quiz and a conclusion**; the teacher **refines** by section and, on **approval**, a
+**second agent** builds the **published lesson** that the student sees. It is the
+sample that exercises almost the whole spec and shows the architectural
+differentiator: **agent composition through CDI events**.
+
+```
+GET  /course/                           the studio (chapter left, packet right, refine chat)
+GET  /course/student.html               the published lesson, as a student sees it
+POST /course/api/packet/generate        generate intro + quiz + conclusion
+POST /course/api/packet/refine-section  { section: intro|quiz|conclusion|all, instruction }
+POST /course/api/packet/approve         approve + trigger the PublishAgent
+GET  /course/api/lesson                 the published (student-facing) lesson
+POST /course/api/quiz/grade             grade an open answer via the LLM (similarity)
+GET  /course/api/progress/{runId}       live phase progress (Server-Sent Events)
+```
+
+### The strong design ideas
+
+1. **Two agents, chained only by CDI events.** `CourseContentAgent` generates/
+   refines the packet; on approval, the REST layer fires the `LessonApproved`
+   event, which is the **`@Trigger`** of a second `@Agent` (`PublishAgent`). There
+   is no orchestrator: the **human approval** is the gate between them. Each agent
+   has its own workflow and its own LLM conversation.
+2. **Truly ordered phases.** The phases carry an explicit `order`
+   (`@Decision(order=5)`, `@Action(order=10/20/30)`), guaranteeing intro → quiz →
+   conclusion. Reminder from ch. 5: if **one** phase is ordered, **all** must be,
+   otherwise the deploy fails with "Inconsistent order".
+3. **Per-workflow state in the agent itself.** No scope annotation → the runtime
+   applies `@WorkflowScoped`, so the `draft` instance field accumulates the packet
+   across phases safely (one instance per execution).
+4. **Workflow conversational memory.** The conclusion does **not** re-send the
+   chapter: it relies on the earlier turns (intro and quiz) of the same workflow
+   conversation.
+5. **Typed result via JSON-B, with defensive parsing.** The quiz becomes a `Quiz`
+   record. Because small models wrap JSON in ``` fences, `parseQuiz` **strips the
+   fences and extracts the `{…}`** before binding, with a placeholder quiz as a
+   last resort — the workflow never aborts on bad JSON.
+6. **Per-section HITL.** The event carries the mode (`currentDraftJson` blank →
+   generate; filled → refine) and the `section`, so `refine-section` rewrites
+   **only the quiz** (or only the intro), preserving the rest.
+7. **Live progress (SSE).** Since `Event.fire` is synchronous, each phase reports
+   to a `ProgressTracker` that streams over Server-Sent Events; the browser popup
+   evolves with the agent's real steps.
+8. **Polymorphic quiz + LLM grading.** `QuizQuestion` has a `type`
+   (`multiple_choice` | `open`). For an **open** question the student answers in a
+   `<textarea>` and the `quiz/grade` endpoint asks the LLM for a **0–100
+   semantic-similarity** score against the `sampleAnswer`, mapped on the server to
+   a verdict (≥70 correct, 50–69 partial, <50 incorrect). A spec detail worth
+   citing: this endpoint **injects the `LargeLanguageModel` directly** into a
+   `@RequestScoped` resource — it works because the runtime's LLM is `@Dependent`
+   (it needs no active workflow), so not every use of the model must be inside an
+   agent.
+
+### The two agents
+
+```java
+// Agent 1 — authoring (ordered, workflow memory, defensive parsing)
+@Agent(name = "CourseContentAgent")
+class CourseContentAgent {
+    private CoursePacket draft;                                   // @WorkflowScoped state
+    @Trigger  void onRequest(@Valid CoursePacketRequest r)        // generate | refine
+    @Decision(order = 5)  boolean hasTeachableContent(...)        // gate
+    @Action(order = 10)   void writeIntro(...)                    // prose (per-subject rubric)
+    @Action(order = 20)   void writeQuiz(...)  { draft.setQuiz(parseQuiz(model.query(...))); }
+    @Action(order = 30)   void writeConclusion(...)               // uses workflow memory
+    @Outcome  void publish(...)                                   // writes to PacketStore
+    @HandleException void onLlmFailure(LLMException e)            // resilience
+}
+
+// Agent 2 — publishing, triggered by LessonApproved (event chaining)
+@Agent(name = "PublishAgent")
+class PublishAgent {
+    @Trigger  void onApproved(LessonApproved e)                  // receives the approved packet
+    @Decision boolean hasApprovedContent(...)
+    @Action   void writeObjectives(...)                          // LLM: "what you'll learn"
+    @Outcome  void publish(...)                                  // writes to PublishedLessonStore
+}
+```
+
+### Configuration (Vertex/Claude — cloud, demo-proof)
+
+```properties
+payara.agentic.llm.provider=vertex
+payara.agentic.llm.model=claude-sonnet-4-6
+payara.agentic.llm.max-tokens=8192
+payara.agentic.llm.system=You are an expert curriculum designer and teacher...
+```
+
+Vertex authenticates via ADC (`gcloud auth application-default login`) or
+`GOOGLE_ACCESS_TOKEN`; project and region come from `ANTHROPIC_VERTEX_PROJECT_ID` /
+`CLOUD_ML_REGION`. **Why Vertex rather than Ollama here:** the Ollama backend has a
+**120 s per-call timeout**; a 12B model on a laptop takes ~2 min per call and the
+quiz step blows the limit. On the cloud it answers in seconds.
+
+⚠️ Maths/physics formulas are rendered with **self-hosted MathJax**
+(`webapp/vendor/mathjax/tex-svg.js`) — the rubric asks for LaTeX (`$...$`,
+`$$...$$`) and rendering works **offline**.
+
+### Details worth highlighting
+
+- The student view (`student.html`) shows the lesson with an **interactive quiz**
+  (answer and *Check answers* marks correct/incorrect + explanation for MCQ; for
+  the open question it grades by LLM similarity and reveals the model answer) —
+  the "final product" that closes the generate → review → **publish** → consume
+  narrative.
+- Everything is single-author (single-slot stores), consistent with a live demo.
 
 ---
 
@@ -250,6 +367,59 @@ prompt instead of trusting conversational memory — the model edits the real st
 to a single field.)
 </details>
 
+**7.** In the Course Content Studio, how do the **two agents** communicate with no
+orchestrator, and what triggers the second one?
+
+<details><summary>Show answer</summary>
+
+Through **CDI events**. `CourseContentAgent` writes the packet in its `@Outcome`;
+when the teacher approves, `CourseResource` fires the `LessonApproved` event, which
+is the **`@Trigger`** of the second agent (`PublishAgent`). The **human approval**
+is the gate between them — full decoupling, no orchestration code. Since `fire` is
+synchronous, the lesson is already published when `approve` returns.
+</details>
+
+**8.** Why does `writeQuiz` do **defensive parsing** (strip fences and extract the
+`{…}`) instead of just using the typed `query(prompt, Quiz.class)` overload?
+
+<details><summary>Show answer</summary>
+
+Because smaller models tend to wrap the JSON in ``` ```json ``` fences or add prose
+around it; the typed overload feeds that straight to JSON-B, which throws a
+deserialization `LLMException`. `parseQuiz` **strips the fences, extracts the `{…}`
+object and binds it to `Quiz`**, with a placeholder quiz as a last resort — so a
+bad quiz never aborts the workflow and the later phases (conclusion, outcome) keep
+running.
+</details>
+
+**9.** The `writeConclusion` `@Action` does **not** re-send the chapter text in the
+prompt. Why does it still produce a coherent conclusion?
+
+<details><summary>Show answer</summary>
+
+Through the **workflow's conversational memory**: the previous `query()` calls
+(intro and quiz) happened in the same `@WorkflowScoped` execution, and the
+implementation keeps the conversational state isolated per workflow (ch. 6). The
+conclusion builds on those earlier turns — it just asks to "tie together the intro
+and quiz you just produced".
+</details>
+
+**10.** Grading an **open question** calls the LLM outside any agent, from a
+`@RequestScoped` resource. Why does that work, and how is the verdict
+(correct/partial/incorrect) decided?
+
+<details><summary>Show answer</summary>
+
+It works because the runtime's `LargeLanguageModel` is registered as
+**`@Dependent`** (the per-workflow isolation comes from the `@Dependent` structure
++ the agent's scope, not from an active workflow context). Injecting it into a
+resource yields a fresh instance with an empty conversation — perfect for a one-off
+grade. The `quiz/grade` endpoint asks the LLM for a **0–100 similarity** score
+between the student's answer and the `sampleAnswer`, and the **server** applies the
+thresholds (≥70 correct, 50–69 partial, <50 incorrect) — keeping the deterministic
+rule outside the model.
+</details>
+
 ---
 
-➡️ Next: [Chapter 9 — Presentation playbook](09-presentation-guide.md)
+➡️ Next: [Chapter 9 — Wrap-up: running the samples and FAQ](09-presentation-guide.md)

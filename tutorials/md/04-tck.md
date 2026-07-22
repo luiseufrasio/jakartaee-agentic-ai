@@ -87,6 +87,90 @@ Two `@ApplicationScoped` classes that are not tests, but tools:
     contract inside a real workflow.
 - `framework/signature` — API signature tests (binary compatibility).
 
+## Concrete examples
+
+To put a face on each bucket, four real samples from the TCK — one per test "flavor".
+
+### Standalone / reflection (`core/agent`)
+
+Verifies the **shape** of the annotation without booting a container. Cheap, runs on any JVM.
+
+```java
+@Standalone
+public class AgentAnnotationTests {
+
+    @Assertion(id = "AGENTICAI-AGENT-003",
+               strategy = "Verify @Agent annotation targets TYPE elements")
+    public void testAgentAnnotationTarget() {
+        Target target = Agent.class.getAnnotation(Target.class);
+        assertNotNull(target, "@Agent must have @Target annotation");
+        ElementType[] targets = target.value();
+        assertEquals(1, targets.length);
+        assertEquals(ElementType.TYPE, targets[0]);
+    }
+}
+```
+
+### Orchestration (`core/behavior/orchestration`)
+
+The classic: fire an event, check the **phase sequence** recorded by `ExecutionTraceRecorder`. The `AnchoredAgent` proves that execution order comes from **source declaration order**, not from the position of `@Trigger`/`@Outcome`.
+
+```java
+@RequiresImplementation
+@Assertion(id = "AGENTICAI-ORCHESTRATION-BHV-002",
+           strategy = "@Decision and @Action execute in source-file declaration order; AnchoredAgent "
+                    + "declares @Action BEFORE @Decision so the impl must invoke act() before decide()")
+public void methodsExecuteInDeclarationOrder() {
+    trace.reset();
+    anchoredEvents.fire(new AnchoredEvent("test"));
+    assertThat(trace.phases())
+            .containsExactly(Phase.TRIGGER, Phase.ACTION, Phase.DECISION, Phase.OUTCOME);
+}
+```
+
+### Termination (`core/behavior/termination`)
+
+The three `@Decision` termination patterns — each one becomes a test with the **same shape** and the same assertion (`TRIGGER, DECISION` — the pipeline stops there):
+
+```java
+@RequiresImplementation
+@Assertion(id = "AGENTICAI-TERM-004",
+           strategy = "Boolean false from @Decision halts all downstream phases")
+public void booleanFalseTerminatesWorkflow() {
+    trace.reset();
+    booleanEvents.fire(new BooleanTerminationEvent("x"));
+    assertThat(trace.phases()).containsExactly(Phase.TRIGGER, Phase.DECISION);
+}
+// same for Result(success=false) and for returning a null object
+```
+
+### Data propagation (`core/behavior/datapropagation`)
+
+Checks that the value returned by one phase arrives as a **typed parameter** in the next. `trace.entries()` stores the arguments each method received:
+
+```java
+@RequiresImplementation
+@Assertion(id = "AGENTICAI-DATA-002",
+           strategy = "TriggerOutput returned by @Trigger is injectable as a parameter in @Decision")
+public void triggerOutputIsInjectableInDecision() {
+    llm.enqueueResponse("ok");
+    events.fire(new DataPropagationEvent("input"));
+    assertThat(trace.entries().get(1).args()[1]).isInstanceOf(TriggerOutput.class);
+}
+```
+
+### LLM contract (`core/behavior/llm`)
+
+Covers the `LargeLanguageModel` **error contract** — argument validation, `{}` placeholder mapping, JSON-B serialization, and the guarantee of **per-workflow isolation** (conversational state does not leak between executions). A typical example:
+
+```java
+@Assertion(strategy = "more parameters than placeholders must throw IllegalArgumentException")
+public void tooManyParamsFailsFast() {
+    assertThrows(IllegalArgumentException.class,
+        () -> llm.chat("Hello {}", "world", "extra"));
+}
+```
+
 ## Build commands
 
 ```bash
