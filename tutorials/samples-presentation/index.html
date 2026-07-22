@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jakarta Agentic AI — Samples in Action</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Payara palette — extracted from payara.fish frontend.css */
+:root{
+  --orange:#ee992f; --orange-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        csoft:#f6a844; --orange-subtle:#fcebd5;
+  --navy:#001b27; --navy-2:#00131b; --navy-3:#0a2a3a; --navy-soft:#12384c;
+  --ink:#e8edf0; --muted:#9fb2bc; --faint:#6d8794;
+  --ok:#5ad18a; --bad:#ff7b87;
+  --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",Consolas,monospace;
+}
+*{box-sizing:border-box} html,body{height:100%}
+body{margin:0;background:var(--navy-2);font-family:var(--sans);color:var(--ink);overflow:hidden}
+
+#stage{position:absolute;top:50%;left:50%;width:1280px;height:720px;transform-origin:center;transform:translate(-50%,-50%) scale(1)}
+.slide{position:absolute;inset:0;padding:64px 84px;display:none;flex-direction:column;background:
+  radial-gradient(1100px 600px at 85% -10%, rgba(238,153,47,.09), transparent 60%),
+  linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 70%)}
+.slide.active{display:flex;animation:slidein .3s ease}
+@keyframes slidein{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+
+/* header pattern */
+.kicker{font-size:15px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--orange);margin:0 0 10px;display:flex;align-items:center;gap:10px}
+.kicker::before{content:"";width:26px;height:3px;background:var(--orange);border-radius:2px}
+h2{font-size:40px;margin:0 0 26px;font-weight:700;letter-spacing:-.5px;line-height:1.15}
+h2 em{color:var(--orange);font-style:normal}
+p,li{font-size:21px;line-height:1.55;color:var(--ink)}
+li{margin:9px 0}
+ul,ol{margin:0;padding-left:30px}
+li::marker{color:var(--orange);font-weight:700}
+strong{color:#fff}
+.muted{color:var(--muted)} .small{font-size:16.5px} .xsmall{font-size:14px}
+code{font-family:var(--mono);font-size:.85em;background:rgba(255,255,255,.08);padding:2px 7px;border-radius:6px;color:#ffd9a8}
+
+/* code panels */
+pre{background:rgba(0,0,0,.42);border:1px solid var(--navy-soft);border-radius:14px;padding:20px 24px;margin:0;overflow:hidden}
+pre code{background:none;padding:0;color:#dce7ec;font-size:16px;line-height:1.55;display:block;white-space:pre}
+pre.sm code{font-size:13.5px;line-height:1.5}
+.tok-kw{color:#7fc8ef;font-weight:500}.tok-ann{color:var(--orange);font-weight:600}
+.tok-str{color:#a8d977}.tok-cmt{color:#6d8794;font-style:italic}.tok-num{color:#f2b8d0}
+.tok-key{color:#7fc8ef}.tok-val{color:#a8d977}
+.panel-label{font-family:var(--mono);font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--faint);margin:0 0 8px}
+
+/* layout helpers */
+.cols{display:flex;gap:34px;flex:1;min-height:0}
+.col{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px}
+.center{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;flex:1}
+.grow{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0}
+/* when a row of columns must also fill height, keep it a ROW (grow alone forces column) */
+.cols.grow{flex-direction:row;justify-content:flex-start;align-items:stretch}
+
+/* cards & chips */
+.card{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:20px 24px}
+.card h3{margin:0 0 8px;font-size:20px;color:var(--orange)}
+.card p,.card li{font-size:17px;margin:0}
+.card ul{margin-top:6px}
+.chip{display:inline-block;background:rgba(238,153,47,.15);border:1px solid rgba(238,153,47,.4);color:var(--orange-soft);border-radius:100px;padding:5px 16px;font-size:15px;font-weight:600;margin:4px 6px 4px 0}
+.check{color:var(--ok);font-weight:700} .cross{color:var(--bad);font-weight:700}
+
+/* tables */
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:17px;border:1px solid rgba(255,255,255,.14);border-radius:12px;overflow:hidden}
+th{background:rgba(238,153,47,.16);color:var(--orange-soft);text-align:left;padding:10px 16px;font-size:14.5px;letter-spacing:.5px;text-transform:uppercase}
+td{padding:10px 16px;border-top:1px solid rgba(255,255,255,.09);vertical-align:top}
+td code{white-space:nowrap}
+
+/* phase flow diagram */
+.flow{display:flex;align-items:center;gap:14px;justify-content:center;margin:26px 0}
+.fbox{border-radius:14px;padding:20px 26px;text-align:center;font-family:var(--mono);font-size:20px;font-weight:600;border:2px solid transparent}
+.fbox small{display:block;font-family:var(--sans);font-weight:400;font-size:13px;margin-top:8px;color:rgba(0,0,0,.55)}
+.f-trigger{background:var(--orange);color:var(--navy)}
+.f-mid{background:#e8edf0;color:var(--navy)}
+.f-out{background:#7fc8ef;color:var(--navy)}
+.farrow{font-size:30px;color:var(--orange);font-weight:700}
+.fexc{margin:10px auto 0;text-align:center;font-family:var(--mono);font-size:17px;color:var(--bad);background:rgba(255,123,135,.1);border:1.5px dashed rgba(255,123,135,.5);border-radius:12px;padding:12px 30px;width:fit-content}
+
+/* footer */
+.foot{position:absolute;bottom:26px;left:84px;right:84px;display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--faint);font-family:var(--mono)}
+.foot .logo{display:flex;gap:8px;align-items:center;font-family:var(--sans);font-weight:600;color:var(--muted)}
+.foot .logo b{color:var(--orange)}
+
+/* title slide */
+.s-title .bigfish{margin-bottom:34px}
+.s-title h1{font-size:64px;margin:0 0 18px;font-weight:700;letter-spacing:-1.5px;line-height:1.08}
+.s-title h1 em{color:var(--orange);font-style:normal}
+.s-title .sub{font-size:24px;color:var(--muted);margin:0 0 40px;max-width:820px}
+.s-title .meta{font-size:17px;color:var(--faint);font-family:var(--mono)}
+.s-title .meta b{color:var(--ink);font-weight:600}
+
+/* section divider slides */
+.s-div .center h2{font-size:56px}
+.s-div .secnum{font-family:var(--mono);font-size:120px;font-weight:600;color:rgba(238,153,47,.18);line-height:1;margin-bottom:6px}
+
+/* quote slide */
+.quote{font-size:40px;font-weight:600;line-height:1.35;max-width:980px;letter-spacing:-.5px}
+.quote em{color:var(--orange);font-style:normal}
+
+/* chrome: progress + counter + help */
+#bar{position:fixed;bottom:0;left:0;height:5px;background:linear-gradient(90deg,var(--orange),#ffbf69);width:0;z-index:10;transition:width .2s}
+#counter{position:fixed;bottom:14px;right:20px;font-family:var(--mono);font-size:13px;color:var(--faint);z-index:10}
+#help{position:fixed;top:14px;right:20px;font-family:var(--mono);font-size:12px;color:rgba(255,255,255,.25);z-index:10}
+#presenter-btn{position:fixed;bottom:12px;left:20px;z-index:10;background:var(--navy-soft);color:var(--ink);border:1px solid var(--orange);border-radius:8px;padding:7px 14px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer}
+#presenter-btn:hover{background:#173047}
+body.overview #presenter-btn{display:none}
+body.overview #stage{display:none}
+#grid{display:none}
+body.overview #grid{display:grid;position:fixed;inset:0;overflow-y:auto;grid-template-columns:repeat(4,1fr);gap:14px;padding:20px;z-index:20;background:var(--navy-2)}
+#grid .thumb{position:relative;aspect-ratio:16/9;border:1.5px solid rgba(255,255,255,.15);border-radius:10px;overflow:hidden;cursor:pointer;background:var(--navy)}
+#grid .thumb:hover{border-color:var(--orange)}
+#grid .thumb .t-label{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;padding:10px;text-align:center}
+#grid .thumb .t-num{font-family:var(--mono);font-size:12px;color:var(--orange)}
+#grid .thumb .t-title{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.3}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="grid"></div>
+<div id="bar"></div><div id="counter"></div>
+<div id="help">← → navigate · O overview · P presenter · F fullscreen</div>
+<button id="presenter-btn" title="Open speaker notes in a second window (P) — open it BEFORE fullscreen">▸ Presenter</button>
+
+<script>
+/* ── tiny highlighter (same as tutorial) ── */
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function hlJava(src){
+  const re=/(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\])*")|(@[A-Za-z_]\w*)|\b(public|private|protected|abstract|class|interface|record|enum|extends|implements|return|void|new|if|else|for|while|switch|case|default|try|catch|finally|throw|throws|import|package|static|final|volatile|boolean|int|long|double|float|null|true|false|this|var|instanceof)\b|((?<![\w.])\d[\d_]*(?:\.\d+)?)/g;
+  let out='',last=0,m;
+  while((m=re.exec(src))){out+=esc(src.slice(last,m.index));
+    const c=m[1]?'cmt':m[2]?'str':m[3]?'ann':m[4]?'kw':'num';
+    out+='<span class="tok-'+c+'">'+esc(m[0])+'</span>';last=m.index+m[0].length;}
+  return out+esc(src.slice(last));
+}
+function hlProps(src){return src.split('\n').map(l=>{
+  if(/^\s*#/.test(l))return '<span class="tok-cmt">'+esc(l)+'</span>';
+  const i=l.indexOf('=');if(i<0)return esc(l);
+  return '<span class="tok-key">'+esc(l.slice(0,i))+'</span>=<span class="tok-val">'+esc(l.slice(i+1))+'</span>';}).join('\n');}
+function java(code,sm){return '<pre'+(sm?' class="sm"':'')+'><code>'+hlJava(code)+'</code></pre>';}
+function props(code,sm){return '<pre'+(sm?' class="sm"':'')+'><code>'+hlProps(code)+'</code></pre>';}
+function txt(code,sm){return '<pre'+(sm?' class="sm"':'')+'><code>'+esc(code)+'</code></pre>';}
+
+const fish='<svg width="86" height="86" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="8" fill="#ee992f"/><path d="M6 17c3.2-4.6 7.6-7 12.2-7 3.4 0 6.6 1.3 9.3 3.8l-2.3 3.2 2.3 3.2c-2.7 2.5-5.9 3.8-9.3 3.8-4.6 0-9-2.4-12.2-7z" fill="#001b27"/><circle cx="22.6" cy="15.4" r="1.5" fill="#ee992f"/></svg>';
+
+/* ═══════════════════ SLIDES ═══════════════════ */
+const slides = [];
+function S(title, html, cls){ slides.push({title, html, cls: cls||''}); }
+
+/* 1 — Title */
+S('Title', `
+<div class="center s-title-inner">
+  <div class="bigfish">${fish}</div>
+  <h1>Jakarta <em>Agentic AI</em></h1>
+  <p class="sub">The samples, in action — the same agent code, three real apps,
+  and the provider swapped by a single config file.</p>
+  <p class="meta"><b>Luís Neto</b> · Payara DEMO · July 2026</p>
+</div>`, 's-title');
+
+/* 2 — What it is */
+S('What it is', `
+<p class="kicker">Motivation</p>
+<h2>An agent is just a <em>CDI bean</em></h2>
+<div class="grow"><ul>
+  <li>It <strong>perceives</strong> an event, <strong>reasons</strong> with an LLM, <strong>decides</strong> whether to proceed, and <strong>acts</strong> — inside a workflow of phases.</li>
+  <li>You program against annotations and one interface, <code>LargeLanguageModel</code>.</li>
+  <li>The <strong>server</strong> provides the orchestration engine and the provider integration.</li>
+</ul>
+<p class="muted" style="margin-top:26px">The Jakarta Persistence analogy: program against <code>EntityManager</code>, let Hibernate implement it. Here: program against <code>@Agent</code>, let Payara run it.</p>
+</div>`);
+
+/* 3 — The problem */
+S('The problem', `
+<p class="kicker">Motivation</p>
+<h2>Three problems the spec attacks</h2>
+<div class="cols grow"><div class="col">
+  <div class="card"><h3>Vendor lock-in</h3><p class="small">Switching the LLM provider means rewriting agent code. Here it is server configuration.</p></div>
+  <div class="card"><h3>No container integration</h3><p class="small">DI, scopes, events, validation — reinvented per framework. The spec builds on CDI.</p></div>
+</div><div class="col">
+  <div class="card"><h3>Ad-hoc workflows</h3><p class="small">Every app invents its own state machine. The spec defines Trigger → Decision* → Action* → Outcome.</p></div>
+  <div class="card"><h3>The proof</h3><p class="small">Three samples today, written the same way — only the properties file differs.</p></div>
+</div></div>`);
+
+/* 4 — One config file */
+S('One config file', `
+<p class="kicker">Motivation · the payoff</p>
+<h2>Switch Ollama (Local) → Claude: <em>edit one file</em></h2>
+<div class="cols grow">
+  <div class="col"><p class="panel-label">Agent code — no vendor anywhere</p>
+  ${java(`@Agent
+public class QuestionAgent {
+  @Inject
+  LargeLanguageModel model;   // jakarta.ai.agent
+
+  @Action
+  void generate(Question q, AnswerStore out) {
+    out.put(q.text(),
+      model.query("Answer concisely: {}", q.text()));
+  }
+}`,true)}</div>
+  <div class="col"><p class="panel-label">microprofile-config.properties — the whole migration</p>
+  ${props(`# BEFORE
+payara.agentic.llm.provider=ollama
+payara.agentic.llm.model=gemma4:12b
+
+# AFTER
+payara.agentic.llm.provider=anthropic
+payara.agentic.llm.model=claude-opus-4-8`)}
+  <p class="small muted">Zero code · zero pom · a redeploy at most</p></div>
+</div>`);
+
+/* 5 — The phase model */
+S('The phase model', `
+<p class="kicker">Motivation · the mental model</p>
+<h2>A workflow of <em>phases</em></h2>
+<div class="grow">
+<div class="flow">
+  <div class="fbox f-trigger">@Trigger<small>required · 1<br>CDI event</small></div><div class="farrow">→</div>
+  <div class="fbox f-mid">@Decision<small>0..N · may stop</small></div><div class="farrow">→</div>
+  <div class="fbox f-mid">@Action<small>0..N · the work</small></div><div class="farrow">→</div>
+  <div class="fbox f-out">@Outcome<small>0..1 · ends it</small></div>
+</div>
+<div class="fexc">@HandleException — catches exceptions from ANY phase</div>
+<ul style="margin-top:28px">
+  <li>Fire a CDI event → the whole workflow runs <strong>synchronously</strong> on that thread</li>
+  <li>Data flows between phases <strong>by type</strong> — no manual parameter passing</li>
+  <li>A decision returning false/null <strong>stops</strong> the workflow cleanly</li>
+</ul></div>`);
+
+/* 6 — Spec × implementation */
+S('Spec × implementation', `
+<p class="kicker">Motivation</p>
+<h2>Plain CDI fires the trigger — <em>Payara runs the rest</em></h2>
+<div class="cols grow"><div class="col"><ul style="font-size:19px">
+  <li>The <code>@Trigger</code> is just a CDI event observer — plain CDI could invoke it</li>
+  <li>But <code>@Decision</code>/<code>@Action</code>/<code>@Outcome</code>, data-by-type, termination and exception dispatch need an <strong>engine</strong></li>
+  <li>Payara's <code>agentic-ai-core</code> provides it — a <strong>portable CDI extension</strong>, no proprietary SPI</li>
+</ul></div>
+<div class="col"><div class="card"><h3>What that means today</h3><p>Everything you will see running — three samples — is standard Jakarta EE: CDI beans, CDI events, MicroProfile Config. The agent code carries no framework base class and names no provider.</p></div></div></div>`);
+
+/* 7 — Three samples */
+S('Three samples', `
+<p class="kicker">The samples</p>
+<h2>Three samples, rising in ambition</h2>
+<table>
+  <tr><th>Sample</th><th>What it shows</th><th>Provider — config only</th></tr>
+  <tr><td><code>agentic-ai-quickstart</code></td><td>The four phases, minimal</td><td>Ollama · gemma4:12b</td></tr>
+  <tr><td><code>agentic-ai</code> · Tutorial Generator</td><td>Generate + refine by chat</td><td>Vertex · Claude</td></tr>
+  <tr><td><code>course-content-studio</code></td><td>Two agents by events + LLM grading</td><td>Vertex · Claude</td></tr>
+</table>
+<p class="small muted" style="margin-top:22px">Same programming model in all three. The only real difference between them is <code>microprofile-config.properties</code>.</p>`);
+
+/* 8 — Quickstart */
+S('Quickstart', `
+<p class="kicker">Sample 1 · agentic-ai-quickstart</p>
+<h2>The smallest agent that exercises all four phases</h2>
+<div class="cols grow">
+<div class="col">${txt(`POST /agentic-ai-quickstart/api/ask
+  { "question": "..." }
+        │  Event.fire(Question)   ← synchronous
+        ▼
+  QuestionAgent (@WorkflowScoped default)
+  [TRIGGER] → [DECISION] → [ACTION] → [OUTCOME]
+        │
+  AnswerStore  →  { "question", "answer" }`,true)}</div>
+<div class="col"><ul style="font-size:18px">
+  <li><code>Event.fire</code> is <strong>synchronous</strong> — the LLM answer ships in the same HTTP response</li>
+  <li>Empty question → the <code>@Decision</code> returns <code>Result(false, …)</code> → early termination</li>
+  <li>Provider: local <strong>Ollama</strong>, free, offline — a safe first live run</li>
+</ul></div></div>`);
+
+/* 9 — Quickstart code */
+S('Quickstart — the agent', `
+<p class="kicker">Sample 1 · the code</p>
+<h2>Four phases, each logging its prefix</h2>
+${java(`@Agent(name = "QuestionAgent")
+public class QuestionAgent {
+    @Inject LargeLanguageModel model;
+    @Inject AnswerStore answers;
+
+    @Trigger  void onQuestion(@Valid Question q) { }                    // [TRIGGER]
+    @Decision Result hasContent(Question q) {                           // [DECISION]
+        return new Result(q.text() != null && !q.text().isBlank(), q);
+    }
+    @Action   void generate(Question q) {                              // [ACTION]
+        answers.put(q.text(), model.query("Answer concisely: {}", q.text()));
+    }
+    @Outcome  void complete(Question q) { }                            // [OUTCOME]
+}`,true)}
+<p class="small muted">Watch <code>server.log</code>: [TRIGGER] → [DECISION] → [ACTION] → [OUTCOME].</p>`);
+
+/* 9b — Conversation is per-workflow */
+S('Conversation is per-workflow', `
+<p class="kicker">Sample 1 · a subtlety worth showing</p>
+<h2>Each request is a <em>fresh</em> conversation</h2>
+<div class="cols grow">
+<div class="col">${txt(`POST /ask  "Greek philosophers?"     → workflow #1
+   new @WorkflowScoped context
+   new LLM conversation → answers
+   @Outcome destroys the context   ✗ memory gone
+
+POST /ask  "Where were they born?"   → workflow #2
+   brand-new conversation
+   "…who are you referring to?"     ← no memory`,true)}</div>
+<div class="col"><ul style="font-size:18px">
+  <li>Conversational state is <strong>bound to the workflow</strong> — it dies when the <code>@Outcome</code> destroys the context</li>
+  <li>Two HTTP requests = <strong>two workflows</strong> → no shared memory (and full isolation between concurrent users)</li>
+  <li>Memory <strong>does</strong> persist <em>within</em> one workflow — across its phases</li>
+</ul>
+<div class="card" style="margin-top:12px"><p class="small">Exactly what <strong>Course Content Studio</strong> relies on: the conclusion "remembers" the intro and quiz — same workflow, same conversation.</p></div>
+</div></div>`);
+
+/* 10 — Tutorial Generator */
+S('Tutorial Generator', `
+<p class="kicker">Sample 2 · agentic-ai</p>
+<h2>Write a form guide — then <em>refine it by chat</em></h2>
+<div class="cols grow">
+<div class="col">${txt(`GET  /agentic-ai/                     UI: form + guide + chat
+POST /agentic-ai/api/tutorial/generate      a fresh guide
+POST /agentic-ai/api/tutorial/refine        the whole guide
+POST /agentic-ai/api/tutorial/refine-field  only ONE field`,true)}</div>
+<div class="col"><ul style="font-size:17px">
+  <li><strong>Single source of truth</strong> — the form spec renders the live form AND feeds the agent</li>
+  <li><strong>The event carries the mode</strong> — currentHtml null ⇒ generate; filled ⇒ refine</li>
+  <li><strong>Edit the artifact, not the memory</strong> — the current guide travels in the prompt</li>
+  <li>Provider: <strong>Anthropic</strong> Claude, for HTML quality</li>
+</ul></div></div>`);
+
+/* 11 — TG design */
+S('Tutorial Generator — design', `
+<p class="kicker">Sample 2 · patterns to steal</p>
+<h2>One agent, two behaviors — and defensive output</h2>
+<div class="cols grow">
+<div class="col">${java(`@Action
+void render(TutorialRequest r) {
+  String content = (r.currentHtml() == null)
+    ? model.query("Generate the field-guide JSON: {}",
+                  r.formSpec())
+    : model.query("Current guide + change: {} / {}",
+                  r.currentHtml(), r.instruction());
+  store.put(stripCodeFences(content));  // models add fences
+}`,true)}</div>
+<div class="col"><ul style="font-size:17px">
+  <li>Refinement uses <strong>two <code>{}</code> placeholders</strong> — current guide + instruction</li>
+  <li><code>stripCodeFences</code> removes stray code fences — LLM output needs defensive post-processing</li>
+  <li><code>refine-field</code> refines one field (JSON-P) and <strong>merges it back</strong> — limits the blast radius</li>
+</ul></div></div>`);
+
+/* 12 — Course Content Studio (live divider) */
+S('Course Content Studio', `
+<div class="center">
+  <div class="secnum">LIVE</div>
+  <h2>Course Content Studio — <em>two agents, one approval</em></h2>
+  <p class="muted" style="font-size:22px;margin-top:16px">A teacher generates a chapter's intro, quiz &amp; conclusion, refines it, approves — and a second agent publishes the student lesson</p>
+  <div style="margin-top:30px">
+    <span class="chip">generate → refine by section → approve &amp; publish</span>
+    <span class="chip">agent → CDI event → agent</span>
+    <span class="chip">open questions graded by the LLM</span>
+  </div>
+</div>`, 's-div');
+
+/* 13 — Two agents by events */
+S('Two agents by events', `
+<p class="kicker">Course Content Studio · architecture</p>
+<h2>Two agents, composed by <em>CDI events</em></h2>
+<div class="cols grow">
+<div class="col">${txt(`CourseContentAgent   (@WorkflowScoped)
+  @Trigger   onRequest          generate | refine
+  @Decision  hasTeachableContent   (order 5)
+  @Action    writeIntro / writeQuiz / writeConclusion
+  @Outcome   publish → PacketStore
+
+        │  teacher approves
+        ▼  event.fire(LessonApproved)   ← the gate
+
+PublishAgent
+  @Trigger   onApproved
+  @Action    writeObjectives   (its own LLM turn)
+  @Outcome   publish → PublishedLessonStore`,true)}</div>
+<div class="col"><ul style="font-size:17px">
+  <li><strong>No orchestrator</strong> — the approval is the event between two agents</li>
+  <li>Ordered phases · workflow conversational memory · defensive quiz parsing</li>
+  <li>Live <strong>SSE</strong> progress popup while the workflow runs</li>
+</ul></div></div>`);
+
+/* 14 — Quiz grading + config */
+S('Quiz grading + config', `
+<p class="kicker">Course Content Studio · details</p>
+<h2>Open questions, graded by the <em>LLM</em></h2>
+<div class="cols grow">
+<div class="col">${java(`@POST @Path("quiz/grade")
+public Response grade(GradeRequest body) {
+  int score = similarity(model,          // 0..100
+      q.prompt(), q.sampleAnswer(),
+      body.studentAnswer());
+  String verdict = score >= 70 ? "correct"
+      : score >= 50 ? "partial" : "incorrect";
+  return Response.ok(...).build();
+}`,true)}
+<p class="small muted">Injected <code>LargeLanguageModel</code> in a <code>@RequestScoped</code> resource — no agent, because the facade is <code>@Dependent</code>.</p></div>
+<div class="col"><ul style="font-size:17px">
+  <li>Thresholds enforced on the <strong>server</strong>, not the model</li>
+  <li>MathJax is <strong>self-hosted</strong> in the WAR — formulas render offline</li>
+</ul>
+${props(`payara.agentic.llm.provider=vertex
+payara.agentic.llm.model=claude-sonnet-4-6
+payara.agentic.llm.max-tokens=8192`)}
+<p class="xsmall muted">A cloud model on stage — local Ollama times out at 120 s.</p></div></div>`);
+
+/* 15 — Live demo runbook */
+S('Live demo — run it', `
+<p class="kicker">Course Content Studio · live</p>
+<h2>Let's run it</h2>
+<div class="grow"><ol style="font-size:20px">
+  <li><strong>Generate</strong> — Physics, "Newton's Second Law" → watch the SSE popup: trigger → intro → quiz → conclusion → outcome (formulas in LaTeX)</li>
+  <li><strong>Refine → Quiz</strong> — "make it harder + add a final open question" → only the quiz changes, typed as <code>open</code></li>
+  <li><strong>Approve &amp; publish</strong> — a second CDI event triggers PublishAgent (watch its phases)</li>
+  <li><strong>View published lesson</strong> — answer the open question → graded by the LLM (≥ 70 / 50–69 / &lt; 50)</li>
+</ol>
+<p class="small muted" style="margin-top:16px">Fallback: if the cloud token expired, narrate the pre-generated packet or a screenshot — don't debug live.</p></div>`);
+
+/* 16 — Through-line */
+S('The through-line', `
+<p class="kicker">What just happened</p>
+<h2>Same agent style — provider by <em>config</em></h2>
+<table>
+  <tr><th>Sample</th><th>Agent code</th><th>Provider (properties only)</th></tr>
+  <tr><td>Quickstart</td><td>@Agent + 4 phases</td><td>ollama / gemma4:12b</td></tr>
+  <tr><td>Tutorial Generator</td><td>@Agent + generate/refine</td><td>vertex / claude sonnet</td></tr>
+  <tr><td>Course Content Studio</td><td>two @Agents + events</td><td>vertex / claude sonnet</td></tr>
+</table>
+<p class="small muted" style="margin-top:22px">No agent named a provider. Ollama → Claude → Vertex is a properties file. That's the whole thesis — proven live.</p>`);
+
+/* 17 — Takeaways */
+S('Takeaways', `
+<p class="kicker">If you remember three things</p>
+<h2>Key takeaways</h2>
+<div class="grow" style="display:flex;flex-direction:column;gap:18px;justify-content:center">
+  <div class="card" style="display:flex;gap:20px;align-items:center"><div style="font-family:var(--mono);font-size:34px;color:var(--orange);font-weight:600">1</div>
+    <p style="font-size:20px;margin:0"><strong>Agents are CDI beans</strong> with a phase workflow — injection, events, scopes and validation for free.</p></div>
+  <div class="card" style="display:flex;gap:20px;align-items:center"><div style="font-family:var(--mono);font-size:34px;color:var(--orange);font-weight:600">2</div>
+    <p style="font-size:20px;margin:0"><strong>Real vendor neutrality</strong> — the samples switch Ollama ↔ Claude ↔ Vertex with a properties file.</p></div>
+  <div class="card" style="display:flex;gap:20px;align-items:center"><div style="font-family:var(--mono);font-size:34px;color:var(--orange);font-weight:600">3</div>
+    <p style="font-size:20px;margin:0"><strong>Composable</strong> — two agents collaborate through events to build and grade a lesson. All standard Jakarta EE.</p></div>
+</div>`);
+
+/* 18 — Thank you */
+S('Thank you', `
+<div class="center">
+  <div class="bigfish" style="margin-bottom:30px">${fish}</div>
+  <h2 style="font-size:54px">Thank you! <em>Questions?</em></h2>
+  <p class="muted" style="font-size:21px;margin-top:22px">Jakarta Agentic AI — samples: quickstart · tutorial generator · course content studio</p>
+  <p class="meta" style="margin-top:36px;font-family:var(--mono);font-size:16px;color:var(--faint)"><b style="color:var(--ink)">Luís Neto</b> · Payara DEMO · July 2026</p>
+</div>`, 's-title');
+
+/* ═══════════════════ SPEAKER NOTES (English) ═══════════════════ */
+/* One entry per slide, in slide order. Shown in the Presenter window (press P). */
+const NOTES = [
+  `Open: "This session is hands-on — the same agent code, three real apps, and the provider switched by a single config file. Let's see it run." Breathe, smile, go.`,
+  `An agent is a CDI bean that perceives an event, reasons with an LLM, decides whether to proceed, and acts — inside a phase workflow. You code against annotations and one interface; the server provides the engine and the provider. The JPA analogy lands well.`,
+  `Three problems: vendor lock-in, no container integration, ad-hoc workflows. The spec answers each with CDI and a standard phase model. Today's three samples are the proof — hold that promise.`,
+  `The payoff, concretely. The agent names no vendor. Switching Ollama to Claude is this properties file — no code, no pom, no rebuild, because the backend lives in the server. Say it slowly; this is the thesis of the whole talk.`,
+  `Quick mental model so the samples read clearly: a required Trigger from a CDI event, Decisions and Actions that intermix, an optional Outcome, and HandleException across all. Fire the event and the whole thing runs synchronously; data flows by type.`,
+  `One clarification people always ask: plain CDI can fire the trigger, but the rest needs an engine — Payara's agentic-ai-core, a portable CDI extension. Everything you'll see is standard Jakarta EE; the agent has no framework base class and no provider name.`,
+  `Here's the map for the demo: quickstart shows the four phases; the tutorial generator adds generate-and-refine; course content studio adds two agents chained by events and LLM grading. Same model throughout — point at the provider column: only the config differs.`,
+  `The smallest agent. A POST fires a Question event; the workflow runs synchronously, so the LLM answer comes back in the same response. An empty question hits the decision gate and terminates early. Runs on free local Ollama — a safe first live run if you want one.`,
+  `The whole agent on one slide — four phases, each logging its prefix. If I run it, we watch the log go TRIGGER, DECISION, ACTION, OUTCOME. Note again: no vendor, no base class, just annotated methods on a bean.`,
+  `A great contrast to show live: ask the quickstart two related questions — the second has no memory of the first. That's not a bug: conversational state is per workflow. Each POST fires a new event, a new WorkflowScoped context, a fresh LLM conversation, destroyed at the outcome. Two requests are two workflows. But memory DOES persist within a workflow, across its phases — exactly what Course Content Studio's conclusion relies on. Use this to set up that later payoff.`,
+  `Sample two, a real use case: an agent writes a field-by-field guide for a web form, then refines it by chat. Two ideas to flag: a single source of truth for the form, and the event carrying generate-versus-refine. It runs on Claude for HTML quality.`,
+  `The patterns worth stealing: the refinement prompt sends the current artifact back — edit the artifact, not the memory — with two placeholders. stripCodeFences cleans stray fences. And refine-field merges one field back, limiting damage. Honest note: LLM output needs defensive handling.`,
+  `The main event — Course Content Studio. Two agents, chained by a CDI event, with a human approval gate. I'll switch to the live app now and come back to this architecture slide after.`,
+  `After the live run, land the architecture here. CourseContentAgent authors the packet; approving fires LessonApproved, which triggers PublishAgent. No orchestrator — the approval is the event between them. Ordered phases, workflow memory, defensive quiz parsing, live SSE progress.`,
+  `Two closing details from the demo. Open questions are graded by the LLM — a similarity score, thresholds enforced on the server — and that call injects the LargeLanguageModel straight into a REST resource, no agent, because the facade is @Dependent. Config is Vertex/Claude sonnet, cloud, because local would time out.`,
+  `Runbook cues: generate Physics and watch the SSE popup plus the LaTeX formulas; refine only the quiz and add an open question; approve and publish to trigger the second agent; open the student view and grade the open answer. If the token expired, narrate the pre-generated packet — don't debug live.`,
+  `Step back: three samples, same agent style, provider by config. No agent named a provider. Ollama to Claude to Vertex is a properties file — that's the whole thesis, and you just watched it run.`,
+  `Three things to remember: agents are CDI beans with a phase workflow; real vendor neutrality via config; and agents compose through events. All standard Jakarta EE — no proprietary framework.`,
+  `Thank you — invite questions, and have the sample repo links ready. Breathe, and enjoy the Q&A.`,
+];
+
+/* Rough per-slide time budget in seconds; slide 29 (Demo 3) holds the live-demo time.
+   Cumulative total ≈ 20 min. Tweak freely — the presenter shows per-slide + cumulative. */
+const TIMES = [15,35,35,55,45,35,40,40,45,40,40,40,15,55,45,360,35,35,15];
+
+/* ── Presenter window (press P): synced speaker notes + timer ── */
+let presenterWin = null;
+function syncPresenter(n){
+  if(presenterWin && !presenterWin.closed) presenterWin.postMessage({ type:'slide', n:n }, '*');
+}
+function openPresenter(){
+  if(presenterWin && !presenterWin.closed){ presenterWin.focus(); syncPresenter(cur); return; }
+  presenterWin = window.open('', 'jaai-presenter-samples', 'width=780,height=920');
+  if(!presenterWin){ alert('Popup blocked — allow popups for this page, then press P again.'); return; }
+  const data = 'const NOTES=' + JSON.stringify(NOTES) +
+               ';const TITLES=' + JSON.stringify(slides.map(s => s.title)) +
+               ';const TIMES=' + JSON.stringify(TIMES) +
+               ';const TOTAL=' + slides.length + ';';
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<title>Presenter notes</title><style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b1622;color:#e8edf0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:22px 26px 84px}
+#hd{display:flex;justify-content:space-between;align-items:baseline;gap:16px;border-bottom:1px solid #24405a;padding-bottom:10px;margin-bottom:18px}
+#pos{font-family:ui-monospace,Consolas,monospace;color:#ee992f;font-size:20px;font-weight:700;flex:none}
+#title{font-size:22px;font-weight:600;text-align:right}
+#note{font-size:26px;line-height:1.5}
+#nextwrap{margin-top:26px;padding-top:14px;border-top:1px dashed #24405a}
+#nextt{font-weight:600;color:#7fc8ef;font-size:14px;letter-spacing:.5px;text-transform:uppercase}
+#nextnote{color:#9fb2bc;font-size:16px;line-height:1.45;margin-top:7px}
+#tools{position:fixed;left:0;right:0;bottom:0;background:#08111b;border-top:1px solid #24405a;padding:10px 26px;display:flex;gap:12px;align-items:center}
+#timer{font-family:ui-monospace,Consolas,monospace;font-size:24px;color:#5ad18a}
+#target{font-family:ui-monospace,Consolas,monospace;font-size:15px;color:#9fb2bc;margin-right:auto}
+#budget{color:#9fb2bc;font-size:13px;margin-left:auto}
+button{background:#173047;color:#e8edf0;border:1px solid #2b5480;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer}
+button:hover{background:#1d3d59}
+.hint{color:#6d8794;font-size:13px}
+.muted{color:#6d8794}
+</style></head><body>
+<div id="hd"><span id="pos">– / –</span><span id="title"></span></div>
+<div id="note"></div>
+<div id="nextwrap"><div id="nextt"></div><div id="nextnote"></div></div>
+<div id="tools">
+  <span id="timer">00:00</span><span id="target">/ 00:00</span>
+  <button id="startBtn">Start</button><button id="resetBtn">Reset</button>
+  <span id="budget"></span>
+</div>
+<script>${data}
+var elapsed=0,running=false,tid=null,curCum=0;
+function $(id){return document.getElementById(id);}
+function fmt(s){var m=Math.floor(s/60),x=s%60;return (m<10?'0':'')+m+':'+(x<10?'0':'')+x;}
+function cumTo(n){var s=0;for(var i=0;i<n;i++){s+=TIMES[i]||0;}return s;}
+function paint(){$('timer').style.color=(elapsed<=curCum?'#5ad18a':'#ffb454');}
+function toggle(){running=!running;$('startBtn').textContent=running?'Pause':'Start';
+  if(running){tid=setInterval(function(){elapsed++;$('timer').textContent=fmt(elapsed);paint();},1000);}else{clearInterval(tid);}}
+function render(n){
+  curCum=cumTo(n);
+  $('pos').textContent=n+' / '+TOTAL;
+  $('title').textContent=TITLES[n-1]||'';
+  $('note').innerHTML=NOTES[n-1]||'<span class="muted">No notes for this slide.</span>';
+  $('nextt').textContent=n<TOTAL?('Next  ›  '+TITLES[n]):'— last slide —';
+  $('nextnote').textContent=n<TOTAL?(NOTES[n]||''):'';
+  $('budget').textContent='this slide '+fmt(TIMES[n-1]||0)+'  ·  ← → change slide';
+  $('target').textContent='/ '+fmt(curCum)+' target';
+  paint();
+}
+window.addEventListener('message',function(e){var d=e.data||{};if(d.type==='slide')render(d.n);});
+window.addEventListener('keydown',function(e){
+  if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();if(window.opener)opener.postMessage({type:'nav',dir:1},'*');}
+  else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();if(window.opener)opener.postMessage({type:'nav',dir:-1},'*');}
+  else if(e.key===' '){e.preventDefault();toggle();}
+});
+$('startBtn').onclick=toggle;
+$('resetBtn').onclick=function(){elapsed=0;$('timer').textContent=fmt(0);paint();};
+if(window.opener)opener.postMessage({type:'hello'},'*');
+<\/script></body></html>`;
+  try {
+    presenterWin.document.open();
+    presenterWin.document.write(html);
+    presenterWin.document.close();
+    presenterWin.focus();
+    syncPresenter(cur);   // push the current slide immediately (don't wait for "hello")
+  } catch(err){
+    alert('Could not write the presenter window: ' + err);
+    return;
+  }
+  setTimeout(function(){
+    if(!presenterWin || presenterWin.closed){
+      alert('The presenter window was blocked. Allow pop-ups for this page, open it BEFORE going fullscreen (F), then click the "▸ Presenter" button again.');
+    }
+  }, 500);
+}
+window.addEventListener('message', e => {
+  const d = e.data || {};
+  if(d.type === 'hello') syncPresenter(cur);
+  else if(d.type === 'nav') go(cur + (d.dir || 0));
+});
+document.getElementById('presenter-btn').onclick = openPresenter;
+
+/* ═══════════════════ ENGINE ═══════════════════ */
+const stage = document.getElementById('stage');
+slides.forEach((s, i) => {
+  const el = document.createElement('div');
+  el.className = 'slide ' + s.cls;
+  el.id = 'slide-' + (i + 1);
+  el.innerHTML = s.html + (s.cls.includes('s-title') ? '' :
+    '<div class="foot"><span class="logo">Jakarta <b>Agentic AI</b> · Payara DEMO 2026</span><span>' + (i + 1) + ' / ' + slides.length + '</span></div>');
+  stage.appendChild(el);
+});
+
+/* overview grid */
+const grid = document.getElementById('grid');
+slides.forEach((s, i) => {
+  const t = document.createElement('div');
+  t.className = 'thumb';
+  t.innerHTML = '<div class="t-label"><span class="t-num">' + (i + 1) + '</span><span class="t-title">' + s.title + '</span></div>';
+  t.onclick = () => { document.body.classList.remove('overview'); go(i + 1); };
+  grid.appendChild(t);
+});
+
+let cur = 0;
+function go(n){
+  n = Math.min(Math.max(1, n), slides.length);
+  if(n === cur) return;
+  cur = n;
+  document.querySelectorAll('.slide').forEach((el, i) => el.classList.toggle('active', i === n - 1));
+  document.getElementById('bar').style.width = (n / slides.length * 100) + '%';
+  document.getElementById('counter').textContent = n + ' / ' + slides.length;
+  syncPresenter(n);
+  history.replaceState(null, '', '#' + n);
+}
+function fit(){
+  const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720) * 0.985;
+  stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+}
+window.addEventListener('resize', fit);
+
+window.addEventListener('keydown', e => {
+  if(e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); go(cur + 1); }
+  else if(e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(cur - 1); }
+  else if(e.key === 'Home') go(1);
+  else if(e.key === 'End') go(slides.length);
+  else if(e.key === 'o' || e.key === 'O') document.body.classList.toggle('overview');
+  else if(e.key === 'p' || e.key === 'P') openPresenter();
+  else if(e.key === 'Escape') document.body.classList.remove('overview');
+  else if(e.key === 'f' || e.key === 'F'){
+    if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen();
+  }
+});
+document.addEventListener('click', e => {
+  if(document.body.classList.contains('overview')) return;
+  if(e.clientX > window.innerWidth * 0.7) go(cur + 1);
+  else if(e.clientX < window.innerWidth * 0.15) go(cur - 1);
+});
+
+fit();
+go(parseInt(location.hash.slice(1)) || 1);
+</script>
+</body>
+</html>

@@ -34,7 +34,7 @@ try {
 }
 ```
 
-Points worth making on stage:
+Points worth highlighting:
 
 - **The workflow runs on the caller's thread** — `Event.fire()` is synchronous, so
   whoever made the REST POST waits for the workflow to finish (that is why the

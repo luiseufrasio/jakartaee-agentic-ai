@@ -76,7 +76,7 @@ Robustness decisions:
 - **Prompt caching:** when a system prompt is present, it is sent as a single text
   block with `cache_control: {"type": "ephemeral"}` — the stable prefix is reused
   across the workflow's phases (each phase re-sends the conversation; the cached
-  system prompt reduces cost/latency). An honest nuance for the talk: Claude only
+  system prompt reduces cost/latency). An honest nuance: Claude only
   caches prefixes above a minimum size (~4096 tokens on Opus); shorter prompts
   simply do not cache — **silently**, it is not an error.
 - **Non-streaming**, appropriate for the modest `max_tokens` of agent phases; very

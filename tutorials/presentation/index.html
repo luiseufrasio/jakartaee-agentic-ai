@@ -9,7 +9,7 @@
 <style>
 /* Payara palette — extracted from payara.fish frontend.css */
 :root{
-  --orange:#ee992f; --orange-soft:#f6a844; --orange-subtle:#fcebd5;
+  --orange:#ee992f; --orange-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        csoft:#f6a844; --orange-subtle:#fcebd5;
   --navy:#001b27; --navy-2:#00131b; --navy-3:#0a2a3a; --navy-soft:#12384c;
   --ink:#e8edf0; --muted:#9fb2bc; --faint:#6d8794;
   --ok:#5ad18a; --bad:#ff7b87;
@@ -104,6 +104,9 @@ td code{white-space:nowrap}
 #bar{position:fixed;bottom:0;left:0;height:5px;background:linear-gradient(90deg,var(--orange),#ffbf69);width:0;z-index:10;transition:width .2s}
 #counter{position:fixed;bottom:14px;right:20px;font-family:var(--mono);font-size:13px;color:var(--faint);z-index:10}
 #help{position:fixed;top:14px;right:20px;font-family:var(--mono);font-size:12px;color:rgba(255,255,255,.25);z-index:10}
+#presenter-btn{position:fixed;bottom:12px;left:20px;z-index:10;background:var(--navy-soft);color:var(--ink);border:1px solid var(--orange);border-radius:8px;padding:7px 14px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer}
+#presenter-btn:hover{background:#173047}
+body.overview #presenter-btn{display:none}
 body.overview #stage{display:none}
 #grid{display:none}
 body.overview #grid{display:grid;position:fixed;inset:0;overflow-y:auto;grid-template-columns:repeat(4,1fr);gap:14px;padding:20px;z-index:20;background:var(--navy-2)}
@@ -118,7 +121,8 @@ body.overview #grid{display:grid;position:fixed;inset:0;overflow-y:auto;grid-tem
 <div id="stage"></div>
 <div id="grid"></div>
 <div id="bar"></div><div id="counter"></div>
-<div id="help">← → navigate · O overview · F fullscreen</div>
+<div id="help">← → navigate · O overview · P presenter · F fullscreen</div>
+<button id="presenter-btn" title="Open speaker notes in a second window (P) — open it BEFORE fullscreen">▸ Presenter</button>
 
 <script>
 /* ── tiny highlighter (same as tutorial) ── */
@@ -152,7 +156,7 @@ S('Title', `
   <h1>Jakarta <em>Agentic AI</em></h1>
   <p class="sub">A vendor-neutral Jakarta EE specification for building AI agents —
   and its first implementation, inside Payara Server.</p>
-  <p class="meta"><b>Luís Eufrásio</b> · Payara Conference · August 2026</p>
+  <p class="meta"><b>Luís Neto</b> · Payara Conference · August 2026</p>
 </div>`, 's-title');
 
 /* 2 — Agenda */
@@ -163,10 +167,11 @@ S('Agenda', `
   <div class="card"><h3>1 · The problem</h3><p>Every Java AI framework speaks its own dialect</p></div>
   <div class="card"><h3>2 · The specification</h3><p>Agents as CDI beans, a workflow of phases, one LLM facade</p></div>
   <div class="card"><h3>3 · Demo — Quickstart</h3><p>Four phases live, on a free local model (Ollama)</p></div>
-</div><div class="col">
   <div class="card"><h3>4 · Inside the implementation</h3><p>The CDI extension and the WorkflowEngine in Payara</p></div>
+</div><div class="col">
   <div class="card"><h3>5 · Demo — Tutorial Generator</h3><p>Chat refinement with Claude — swap providers with one file</p></div>
-  <div class="card"><h3>6 · TCK &amp; the road ahead</h3><p>How compatibility is proven; what 2.0 may bring</p></div>
+  <div class="card"><h3>6 · Demo — Course Content Studio</h3><p>Two agents chained by events: approve, then publish for the student</p></div>
+  <div class="card"><h3>7 · TCK &amp; the road ahead</h3><p>How compatibility is proven; what 2.0 may bring</p></div>
 </div></div>`);
 
 /* 3 — The problem */
@@ -495,6 +500,35 @@ llm.query("Compare {} with {}", a);          // ✘ IAE`,true)}
   <li><code>IllegalArgumentException</code> = your fault · <code>LLMException</code> = the service's fault</li>
 </ul></div></div>`);
 
+/* 18b — Conversational state */
+S('Conversational state', `
+<p class="kicker">The specification</p>
+<h2>The conversation is <em>per workflow</em></h2>
+<div class="cols grow">
+<div class="col">${java(`@Decision
+boolean isRelevant(Ticket ticket) {
+  // 1st turn: the ticket enters the conversation
+  String category =
+      llm.query("Classify this ticket: {}", ticket);
+  return !"SPAM".equals(category);
+}
+
+@Action
+String draftReply(Ticket ticket) {
+  // 2nd turn: no need to resend the ticket —
+  // the model remembers the turn above
+  return llm.query("Write an initial reply for " +
+      "the ticket you just classified.");
+}`,true)}
+<p class="small muted">History accumulates <strong>across phases</strong> of the same run.</p></div>
+<div class="col">${java(`tickets.fire(new Ticket("A")); // conversation 1
+tickets.fire(new Ticket("B")); // starts from scratch`,true)}
+<ul class="small" style="font-size:17px">
+  <li><code>@WorkflowScoped</code>: the conversation <strong>dies with the workflow</strong> — no memory of ticket A</li>
+  <li><code>@ApplicationScoped</code>: one bean, but histories stay <strong>isolated per workflow</strong> — customer X's mood never leaks into customer Y's prompt</li>
+  <li>Thread-safe <strong>within</strong> a workflow — enforced by the TCK</li>
+</ul></div></div>`);
+
 /* 19 — Demo 1 divider */
 S('Demo 1', `
 <div class="center">
@@ -656,6 +690,74 @@ S('Tutorial Generator design', `
 </div></div>
 <p class="small muted">Provider: Anthropic <code>claude-opus-4-8</code>, 8192 max tokens, system prompt from config = cache prefix. Fully local fallback: <code>ollama / gemma3:12b</code>.</p>`);
 
+/* 27a — Demo 3 divider */
+S('Demo 3', `
+<div class="center">
+  <div class="secnum">DEMO 3</div>
+  <h2>Course Content Studio — <em>two agents, one approval</em></h2>
+  <p class="muted" style="font-size:22px;margin-top:16px">A teacher generates a chapter's intro, quiz and conclusion — approves — and a <em>second agent</em> publishes the student-facing lesson</p>
+  <div style="margin-top:34px">
+    <span class="chip">generate → refine by section → approve &amp; publish</span>
+    <span class="chip">agent → event → agent (no orchestrator)</span>
+    <span class="chip">open questions graded by the LLM</span>
+  </div>
+</div>`, 's-div');
+
+/* 27b — Two agents by events */
+S('Two agents by events', `
+<p class="kicker">Demo 3 · Course Content Studio</p>
+<h2>Two agents, composed by <em>CDI events</em></h2>
+<div class="cols grow">
+<div class="col">${txt(`CourseContentAgent   (@WorkflowScoped)
+  @Trigger   onRequest            generate | refine
+  @Decision  hasTeachableContent    (order 5)
+  @Action    writeIntro             (order 10)
+  @Action    writeQuiz              (order 20)
+  @Action    writeConclusion        (order 30)
+  @Outcome   publish → PacketStore
+
+        │  teacher approves
+        ▼  event.fire(LessonApproved)   ← the gate
+
+PublishAgent
+  @Trigger   onApproved
+  @Action    writeObjectives   (its own LLM turn)
+  @Outcome   publish → PublishedLessonStore`,true)}</div>
+<div class="col"><ul class="small" style="font-size:17px">
+  <li><strong>No orchestrator</strong> — the approval is a human-in-the-loop <strong>event</strong> between two agents</li>
+  <li>Each agent has its <strong>own workflow</strong> and its <strong>own LLM conversation</strong></li>
+  <li><strong>Ordered phases</strong> — intro → quiz → conclusion (the all-or-none ordering law)</li>
+  <li>The <strong>conclusion re-sends nothing</strong> — it rides the workflow's conversational memory</li>
+  <li>Per-subject rubric · defensive quiz parsing · live <strong>SSE</strong> progress popup</li>
+</ul></div></div>`);
+
+/* 27c — Open-question grading + config */
+S('Quiz grading + config', `
+<p class="kicker">Demo 3 · Course Content Studio</p>
+<h2>Open questions, graded by the <em>LLM</em></h2>
+<div class="cols grow">
+<div class="col">${java(`// QuizQuestion.type = "multiple_choice" | "open"
+// an open answer is graded OUTSIDE any agent:
+@POST @Path("quiz/grade")
+public Response grade(GradeRequest body) {
+  int score = similarity(model,          // 0..100
+      q.prompt(), q.sampleAnswer(),
+      body.studentAnswer());
+  String verdict = score >= 70 ? "correct"
+      : score >= 50 ? "partial" : "incorrect";
+  return Response.ok(...).build();
+}`,true)}
+<p class="small muted">The facade is <code>@Dependent</code> ⇒ inject it straight into a <code>@RequestScoped</code> resource — <strong>not every LLM call needs an agent</strong>.</p></div>
+<div class="col"><ul class="small" style="font-size:17px">
+  <li>Similarity <strong>≥ 70 correct · 50–69 partial · &lt; 50 incorrect</strong> — thresholds enforced on the <strong>server</strong>, not the model</li>
+  <li>MathJax is <strong>self-hosted</strong> in the WAR — formulas render offline</li>
+</ul>
+${props(`payara.agentic.llm.provider=vertex
+payara.agentic.llm.model=claude-sonnet-4-6
+payara.agentic.llm.max-tokens=8192`)}
+<p class="xsmall muted">A cloud model on stage — the local Ollama backend times out at 120 s on a laptop.</p>
+</div></div>`);
+
 /* 28 — TCK */
 S('The TCK', `
 <p class="kicker">Proving compatibility</p>
@@ -714,8 +816,144 @@ S('Thank you', `
   <div class="bigfish" style="margin-bottom:30px">${fish}</div>
   <h2 style="font-size:54px">Thank you! <em>Questions?</em></h2>
   <p class="muted" style="font-size:21px;margin-top:22px">Jakarta Agentic AI — spec · TCK · Payara implementation · samples</p>
-  <p class="meta" style="margin-top:36px;font-family:var(--mono);font-size:16px;color:var(--faint)"><b style="color:var(--ink)">Luís Eufrásio</b> · Payara Conference · August 2026</p>
+  <p class="meta" style="margin-top:36px;font-family:var(--mono);font-size:16px;color:var(--faint)"><b style="color:var(--ink)">Luís Neto</b> · Payara Conference · August 2026</p>
 </div>`, 's-title');
+
+/* ═══════════════════ SPEAKER NOTES (English) ═══════════════════ */
+/* One entry per slide, in slide order. Shown in the Presenter window (press P). */
+const NOTES = [
+  `Welcome and set the frame: "I'm Luís — today I want to show what it looks like when building AI agents becomes a Jakarta EE standard, not another framework. A spec, a real implementation inside Payara, and live samples." Breathe, smile, go.`,
+  `Roadmap in one breath — the problem, the spec, three live demos woven through the implementation internals, then the TCK and where this is heading. Don't read every box; just signpost the three demos.`,
+  `Everyone wants agents; Java gives you five ways to get locked in — vendor lock-in, no container integration, ad-hoc workflows. Name-drop LangChain4j, Spring AI, Semantic Kernel: all excellent, all proprietary programming models. That's the gap.`,
+  `The one-liner of the whole talk: what would the Jakarta Persistence of AI agents look like? Program against a standard API; let the server provide the engine and the provider. Pause here — let it land.`,
+  `World 1. To switch GPT to Claude in LangChain4j you change the builder AND the dependency, then rebuild. The abstraction belongs to one vendor's library — not a standard.`,
+  `World 2, and be fair — Spring AI is nicer: swap the starter, the ChatClient code can stay. But it's still an application rebuild, still a single implementation inside Spring, and there's no spec or TCK guaranteeing portable behavior.`,
+  `World 3 — the payoff. The agent code names no vendor. The entire migration is a properties file: provider ollama to anthropic. No code, no pom change — the backend lives in the server, not the WAR. This is the thesis; say it slowly.`,
+  `Small API, real spec: four modules — api, spec, tck, examples. Seven annotations, one interface. Design decisions: CDI-first, JSON-B, Java 17 / Jakarta EE 10, and a minimal LLM facade that can evolve like JPA providers.`,
+  `The core mental model — a workflow of phases: one required Trigger from a CDI event, zero-to-many Decisions and Actions that intermix freely, an optional Outcome, and HandleException across all of them. Data flows by type; one WorkflowScoped context wraps each run.`,
+  `And it fits on one slide. Point at each phase. Emphasize: no vendor, no framework base class — just a CDI bean with annotated methods.`,
+  `Only two scopes, deliberately. WorkflowScoped — new per run, private fields, no locking. ApplicationScoped — one shared instance, thread-safety on you, and it may be a regular observer. Punchline: the LLM conversation is always per workflow, even on a singleton.`,
+  `A nice subtlety: the trigger can return data — a pre-analysis of the event — and that return enters the workflow context. Later phases just ask for it by type. Same mechanism carries decision and action returns forward. No manual wiring.`,
+  `Decisions have three return shapes: boolean pure gate; Result — verdict plus data; or a domain object where non-null proceeds. And termination is a feature: false or null stops the workflow cleanly. Note: no rollback of side effects — bring your own transaction.`,
+  `Multiple decisions are serial gates — a logical AND. They never call each other; they talk through the context, by type. Any gate failing cuts everything after it. And a decision can come after an action, to validate what it produced.`,
+  `Who runs first: Priority beats order beats source declaration order. The one law — if any phase is explicitly ordered, all must be, or it's a deployment error. Tip: steps of 10, avoid order zero.`,
+  `Recovery with semantics. Most specific exception type wins — hierarchy, not declaration order. Return normally means recovered, and the Outcome still runs. Throw means stop. And no recursive handling — a handler's own exception goes straight to the container.`,
+  `A Q&A favorite. There's no transactional semantics in 1.0, but because fire is synchronous, a Transactional on the caller wraps the whole workflow. The catch: early termination is normal completion — it commits. To roll back you must throw, not return false.`,
+  `One facade for every model — four query overloads plus unwrap, the JPA-style escape hatch. Placeholders are positional, params serialized with JSON-B. Typed responses deserialize JSON to your record. IllegalArgument is your fault; LLMException is the service's.`,
+  `Drive the per-workflow point home: the second phase doesn't resend the ticket — the model remembers the earlier turn. WorkflowScoped: the conversation dies with the run. ApplicationScoped: histories stay isolated per workflow. Enforced by the TCK.`,
+  `First demo — keep it tight: one agent, four phases, on a free local Ollama model, no network, no cost. Fire a REST POST and watch the log. (If short on time, narrate from the next slide instead of running it.)`,
+  `Recap what happened: the POST fires a CDI event, the synthetic observer runs the engine on this thread, the four phases run, the context is destroyed. The whole thing — LLM call included — finishes before fire returns; that's why the answer ships in the same response.`,
+  `Now the internals — and the promise: no bytecode magic, no proprietary SPI. One portable CDI extension, one engine, pluggable backends.`,
+  `The boot pipeline. ProcessAnnotatedType applies the default scope and removes @Observes from the trigger. ProcessManagedBean checks for an app-supplied LLM. AfterBeanDiscovery registers the context, one synthetic observer per agent, and the default LLM. Structural mistakes fail the deployment — fail fast.`,
+  `The aha moment. If @Observes stayed, CDI would call the trigger directly — no engine, no context — and twice, because the engine also observes. Removing it makes the synthetic observer the single entry point. Same idea for the LLM: the default self-vetoes, so the app's LLM always wins and tests run offline.`,
+  `One method runs everything: activate the context, resolve agent and LLM, run the trigger, loop the sorted phases with gate checks, run the outcome, dispatch handlers, and always deactivate. It's a ThreadLocal context — free isolation between concurrent workflows — and registering that context is exactly the fingerprint the TCK looks for.`,
+  `The spec logic is written once in LargeLanguageModelImpl; underneath, a tiny LlmBackend SPI with NoOp, Ollama, Anthropic, Vertex. Selected by MicroProfile Config. Robustness: unknown provider falls back to NoOp; Anthropic without a key fails fast. No SDK — raw HttpClient — to avoid OSGi clashes. Prompt caching via cache_control.`,
+  `Second demo — a real use case. An agent writes a field-by-field guide for a web form, then refines it by chat, on Claude. The pattern to watch: the event carries the mode, and the artifact travels in the prompt.`,
+  `The ideas worth stealing: a single source of truth for the form; the event carries generate-vs-refine; edit the artifact, not the memory; and defensive LLM handling — strip code fences, per-field merge. Provider is Anthropic via one config block.`,
+  `Third demo — and the one I'll spend the most time on. Course Content Studio: two agents, chained by a CDI event, with a human approval gate. Generate, refine, approve-and-publish, then the student view. Switch to the live app now.`,
+  `After the live run, land the architecture here. CourseContentAgent authors the packet; approving fires LessonApproved, which triggers PublishAgent. No orchestrator — the approval is the event between them. Ordered phases, workflow memory, defensive quiz parsing, live SSE progress.`,
+  `Two closing points from the demo. Open questions are graded by the LLM — a similarity score, thresholds enforced on the server — and that call injects the LargeLanguageModel straight into a REST resource, no agent, because the facade is @Dependent. And the config: Vertex/Claude sonnet — a cloud model, because local would time out at 120 seconds.`,
+  `A spec is real when it has a TCK. Tests ship in main for implementors to run; every test maps to a requirement via @Assertion. Standalone reflection tests versus deployed Arquillian tests. The detection trick: a compatible implementation registers a WorkflowScoped context — that context is the fingerprint.`,
+  `What 1.0 holds back on purpose: one trigger, CDI-event triggers only, linear gates, implementation-specific provider config, synchronous execution. Candidates for next: multiple triggers, messaging/REST triggers, standardized provider selection — the JPA path — async and multi-agent orchestration.`,
+  `If they remember three things: agents are CDI beans with a phase workflow; real vendor neutrality — Ollama to Claude to Vertex is a properties file; and it's a real spec with a TCK and a production implementation, not a paper.`,
+  `Thank you — invite questions. Have the repo and sample links ready. Breathe, and enjoy the Q&A.`,
+];
+
+/* Rough per-slide time budget in seconds; slide 29 (Demo 3) holds the live-demo time.
+   Cumulative total ≈ 20 min. Tweak freely — the presenter shows per-slide + cumulative. */
+const TIMES = [15,20,25,15,20,20,35,20,40,25,35,25,25,25,20,30,25,25,30,10,25,10,40,35,40,35,10,25,360,40,35,25,20,25,15];
+
+/* ── Presenter window (press P): synced speaker notes + timer ── */
+let presenterWin = null;
+function syncPresenter(n){
+  if(presenterWin && !presenterWin.closed) presenterWin.postMessage({ type:'slide', n:n }, '*');
+}
+function openPresenter(){
+  if(presenterWin && !presenterWin.closed){ presenterWin.focus(); syncPresenter(cur); return; }
+  presenterWin = window.open('', 'jaai-presenter', 'width=780,height=920');
+  if(!presenterWin){ alert('Popup blocked — allow popups for this page, then press P again.'); return; }
+  const data = 'const NOTES=' + JSON.stringify(NOTES) +
+               ';const TITLES=' + JSON.stringify(slides.map(s => s.title)) +
+               ';const TIMES=' + JSON.stringify(TIMES) +
+               ';const TOTAL=' + slides.length + ';';
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<title>Presenter notes</title><style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b1622;color:#e8edf0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:22px 26px 84px}
+#hd{display:flex;justify-content:space-between;align-items:baseline;gap:16px;border-bottom:1px solid #24405a;padding-bottom:10px;margin-bottom:18px}
+#pos{font-family:ui-monospace,Consolas,monospace;color:#ee992f;font-size:20px;font-weight:700;flex:none}
+#title{font-size:22px;font-weight:600;text-align:right}
+#note{font-size:26px;line-height:1.5}
+#nextwrap{margin-top:26px;padding-top:14px;border-top:1px dashed #24405a}
+#nextt{font-weight:600;color:#7fc8ef;font-size:14px;letter-spacing:.5px;text-transform:uppercase}
+#nextnote{color:#9fb2bc;font-size:16px;line-height:1.45;margin-top:7px}
+#tools{position:fixed;left:0;right:0;bottom:0;background:#08111b;border-top:1px solid #24405a;padding:10px 26px;display:flex;gap:12px;align-items:center}
+#timer{font-family:ui-monospace,Consolas,monospace;font-size:24px;color:#5ad18a}
+#target{font-family:ui-monospace,Consolas,monospace;font-size:15px;color:#9fb2bc;margin-right:auto}
+#budget{color:#9fb2bc;font-size:13px;margin-left:auto}
+button{background:#173047;color:#e8edf0;border:1px solid #2b5480;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer}
+button:hover{background:#1d3d59}
+.hint{color:#6d8794;font-size:13px}
+.muted{color:#6d8794}
+</style></head><body>
+<div id="hd"><span id="pos">– / –</span><span id="title"></span></div>
+<div id="note"></div>
+<div id="nextwrap"><div id="nextt"></div><div id="nextnote"></div></div>
+<div id="tools">
+  <span id="timer">00:00</span><span id="target">/ 00:00</span>
+  <button id="startBtn">Start</button><button id="resetBtn">Reset</button>
+  <span id="budget"></span>
+</div>
+<script>${data}
+var elapsed=0,running=false,tid=null,curCum=0;
+function $(id){return document.getElementById(id);}
+function fmt(s){var m=Math.floor(s/60),x=s%60;return (m<10?'0':'')+m+':'+(x<10?'0':'')+x;}
+function cumTo(n){var s=0;for(var i=0;i<n;i++){s+=TIMES[i]||0;}return s;}
+function paint(){$('timer').style.color=(elapsed<=curCum?'#5ad18a':'#ffb454');}
+function toggle(){running=!running;$('startBtn').textContent=running?'Pause':'Start';
+  if(running){tid=setInterval(function(){elapsed++;$('timer').textContent=fmt(elapsed);paint();},1000);}else{clearInterval(tid);}}
+function render(n){
+  curCum=cumTo(n);
+  $('pos').textContent=n+' / '+TOTAL;
+  $('title').textContent=TITLES[n-1]||'';
+  $('note').innerHTML=NOTES[n-1]||'<span class="muted">No notes for this slide.</span>';
+  $('nextt').textContent=n<TOTAL?('Next  ›  '+TITLES[n]):'— last slide —';
+  $('nextnote').textContent=n<TOTAL?(NOTES[n]||''):'';
+  $('budget').textContent='this slide '+fmt(TIMES[n-1]||0)+'  ·  ← → change slide';
+  $('target').textContent='/ '+fmt(curCum)+' target';
+  paint();
+}
+window.addEventListener('message',function(e){var d=e.data||{};if(d.type==='slide')render(d.n);});
+window.addEventListener('keydown',function(e){
+  if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();if(window.opener)opener.postMessage({type:'nav',dir:1},'*');}
+  else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();if(window.opener)opener.postMessage({type:'nav',dir:-1},'*');}
+  else if(e.key===' '){e.preventDefault();toggle();}
+});
+$('startBtn').onclick=toggle;
+$('resetBtn').onclick=function(){elapsed=0;$('timer').textContent=fmt(0);paint();};
+if(window.opener)opener.postMessage({type:'hello'},'*');
+<\/script></body></html>`;
+  try {
+    presenterWin.document.open();
+    presenterWin.document.write(html);
+    presenterWin.document.close();
+    presenterWin.focus();
+  } catch(err){
+    alert('Could not write the presenter window: ' + err);
+    return;
+  }
+  setTimeout(function(){
+    if(!presenterWin || presenterWin.closed){
+      alert('The presenter window was blocked. Allow pop-ups for this page, open it BEFORE going fullscreen (F), then click the "▸ Presenter" button again.');
+    }
+  }, 500);
+}
+window.addEventListener('message', e => {
+  const d = e.data || {};
+  if(d.type === 'hello') syncPresenter(cur);
+  else if(d.type === 'nav') go(cur + (d.dir || 0));
+});
+document.getElementById('presenter-btn').onclick = openPresenter;
 
 /* ═══════════════════ ENGINE ═══════════════════ */
 const stage = document.getElementById('stage');
@@ -746,6 +984,7 @@ function go(n){
   document.querySelectorAll('.slide').forEach((el, i) => el.classList.toggle('active', i === n - 1));
   document.getElementById('bar').style.width = (n / slides.length * 100) + '%';
   document.getElementById('counter').textContent = n + ' / ' + slides.length;
+  syncPresenter(n);
   history.replaceState(null, '', '#' + n);
 }
 function fit(){
@@ -760,6 +999,7 @@ window.addEventListener('keydown', e => {
   else if(e.key === 'Home') go(1);
   else if(e.key === 'End') go(slides.length);
   else if(e.key === 'o' || e.key === 'O') document.body.classList.toggle('overview');
+  else if(e.key === 'p' || e.key === 'P') openPresenter();
   else if(e.key === 'Escape') document.body.classList.remove('overview');
   else if(e.key === 'f' || e.key === 'F'){
     if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen();

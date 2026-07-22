@@ -1,7 +1,7 @@
 # Tutorial — Jakarta Agentic AI (Spec + Payara Implementation + Samples)
 
-Study material for the Payara conference talk (August 2026).
-It covers the three layers of the presentation:
+A hands-on tutorial for Jakarta Agentic AI: the specification, the Payara
+implementation, and the samples. It covers three layers:
 
 | Layer | Location | What it is |
 | --- | --- | --- |
@@ -26,7 +26,7 @@ It covers the three layers of the presentation:
 6. [Payara implementation: WorkflowEngine and scope](06-payara-impl-engine.md) — phase orchestration, `WorkflowContext`, `ParameterResolver`, `@WorkflowScoped`
 7. [LLM backends and configuration](07-llm-backends.md) — MicroProfile Config, Ollama, Anthropic (Claude), Vertex, NoOp, prompt caching
 8. [The samples](08-samples.md) — quickstart and tutorial generator, line by line
-9. [Presentation playbook](09-presentation-guide.md) — suggested narrative, demo checklist, likely audience questions + final quiz
+9. [Wrap-up: running the samples and FAQ](09-presentation-guide.md) — recap, how to run the samples, FAQ + final quiz
 
-Every chapter ends with a **quiz** — at the conference you will get similar
-questions from the audience, so treat each quiz as a Q&A rehearsal.
+Every chapter ends with a **quiz** to check your understanding — reveal the
+answer and score yourself.
