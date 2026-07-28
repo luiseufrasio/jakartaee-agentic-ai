@@ -68,6 +68,80 @@ primeira — o histórico é acumulado e reenviado ao modelo. E os limites:
   histórico entre si.
 - Implementações devem ser **thread-safe dentro de um workflow**.
 
+### Cenário 1 — memória entre fases do mesmo workflow
+
+O segundo `query` não precisa reenviar o que já foi dito: o histórico acumulado
+vai junto.
+
+```java
+@Agent
+public class TriageAgent {
+
+    @Inject
+    private LargeLanguageModel llm;
+
+    @Decision
+    public boolean isRelevant(Ticket ticket) {
+        // 1º turno: o ticket entra na conversa aqui
+        String category = llm.query("Classifique este chamado: {}", ticket);
+        return !"SPAM".equals(category);
+    }
+
+    @Action
+    public String draftReply(Ticket ticket) {
+        // 2º turno: o modelo "lembra" do chamado classificado acima —
+        // note que o prompt nem repete o conteúdo do ticket.
+        return llm.query(
+            "Escreva uma resposta inicial para o chamado que você classificou.");
+    }
+}
+```
+
+### Cenário 2 — `@WorkflowScoped`: a conversa morre com o workflow
+
+Cada disparo de evento cria um novo contexto de workflow — e uma conversa
+zerada. Não existe memória *entre* workflows:
+
+```java
+tickets.fire(new Ticket("A"));  // workflow 1: conversa própria, descartada no fim
+tickets.fire(new Ticket("B"));  // workflow 2: começa do zero — não "lembra" do ticket A
+```
+
+Se o segundo prompt fosse `"Compare com o chamado anterior"`, o modelo não teria
+como responder: o histórico do workflow 1 já não existe.
+
+### Cenário 3 — `@ApplicationScoped`: singleton, mas conversas isoladas
+
+O bean é um só para a aplicação inteira; o estado conversacional, não — ele é
+**por contexto de workflow**, mesmo sob concorrência:
+
+```java
+@Agent
+@ApplicationScoped
+public class SupportAgent {
+
+    @Inject
+    private LargeLanguageModel llm;   // injetado uma vez no singleton...
+
+    @Decision
+    public boolean needsHuman(CustomerMessage msg) {
+        String mood = llm.query("Qual o humor deste cliente? {}", msg);
+        return "ANGRY".equals(mood);
+    }
+
+    @Action
+    public String reply(CustomerMessage msg) {
+        // ...mas cada workflow enxerga SÓ o próprio histórico: se os clientes
+        // X e Y estão sendo atendidos em paralelo, o humor detectado para X
+        // jamais aparece no prompt do workflow de Y.
+        return llm.query("Responda no tom adequado ao humor que você detectou.");
+    }
+}
+```
+
+É exatamente o cenário da questão 3 do quiz — e o que o TCK cobra quando exige
+isolamento por workflow até para agentes `@ApplicationScoped`.
+
 Na implementação da Payara isso sai "de graça" da arquitetura: o
 `LargeLanguageModelImpl` guarda a conversa numa lista de turnos (`user`/`assistant`)
 e é registrado como bean **`@Dependent`** — cada ponto de injeção/resolução dentro
