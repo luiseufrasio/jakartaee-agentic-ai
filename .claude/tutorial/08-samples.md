@@ -1,8 +1,10 @@
 # Capítulo 8 — Os samples
 
-Dois samples, dois papéis na apresentação: o **quickstart** ensina o modelo de
+Três samples, três papéis na apresentação: o **quickstart** ensina o modelo de
 programação em 5 classes; o **tutorial generator** mostra um caso de uso real com
-loop de refinamento via chat.
+loop de refinamento via chat; e o **Course Content Studio** sobe o nível para
+**dois agentes encadeados por eventos CDI**, com aprovação humana no meio e uma
+visão final para o aluno.
 
 ---
 
@@ -170,6 +172,118 @@ refinamento via chat produz resultado diferente.
 
 ---
 
+## Sample 3 — `course-content-studio` (domínio educação)
+
+📦 Repositório: <https://github.com/luieufrasio/course-content-studio>
+
+**Caso de uso avançado:** o professor cola o conteúdo de um capítulo e escolhe a
+matéria (matemática, física, inglês); um agente gera **introdução + quiz +
+conclusão**; o professor **refina** por seção e, ao **aprovar**, um **segundo
+agente** monta a **aula publicada** que o aluno enxerga. É o sample que exercita
+quase toda a spec e demonstra o diferencial arquitetural: **composição de agentes
+por eventos CDI**.
+
+```
+GET  /course/                           studio (capítulo à esquerda, pacote à direita, chat de revisão)
+GET  /course/student.html               a aula publicada, como o aluno vê
+POST /course/api/packet/generate        gera intro + quiz + conclusão
+POST /course/api/packet/refine-section  { section: intro|quiz|conclusion|all, instruction }
+POST /course/api/packet/approve         aprova + dispara o PublishAgent
+GET  /course/api/lesson                 a aula publicada (student-facing)
+POST /course/api/quiz/grade             corrige uma resposta aberta via LLM (similaridade)
+GET  /course/api/progress/{runId}       progresso ao vivo das fases (Server-Sent Events)
+```
+
+### As ideias fortes do design
+
+1. **Dois agentes, encadeados só por eventos CDI.** `CourseContentAgent` gera/
+   refina o pacote; ao aprovar, o REST dispara o evento `LessonApproved`, que é o
+   **trigger** de um segundo `@Agent` (`PublishAgent`). Não há orquestrador: a
+   **aprovação humana** é o gate entre os dois. Cada agente tem seu próprio
+   workflow e sua própria conversa com o LLM.
+2. **Fases ordenadas de verdade.** As fases carregam `order` explícito
+   (`@Decision(order=5)`, `@Action(order=10/20/30)`), garantindo intro → quiz →
+   conclusão. Lembrete do cap. 5: se **uma** fase é ordenada, **todas** têm que
+   ser, senão o deploy cai com "Inconsistent order".
+3. **Estado por-workflow no próprio agente.** Sem anotação de escopo → o runtime
+   aplica `@WorkflowScoped`, então o campo de instância `draft` acumula o pacote
+   entre as fases com segurança (uma instância por execução).
+4. **Memória conversacional do workflow.** A conclusão **não reenvia** o capítulo:
+   ela se apoia nos turnos anteriores (intro e quiz) da mesma conversa do
+   workflow.
+5. **Resultado tipado via JSON-B, com parse defensivo.** O quiz vira um record
+   `Quiz`. Como modelos pequenos embrulham o JSON em cercas ```` ``` ````, o
+   `parseQuiz` **remove as cercas e extrai o `{…}`** antes do bind, com um quiz
+   placeholder como último recurso — o workflow nunca aborta por JSON ruim.
+6. **HITL por seção.** O evento carrega o modo (`currentDraftJson` vazio → gerar;
+   preenchido → refinar) e a `section`, então `refine-section` reescreve **só o
+   quiz** (ou só a intro) preservando o resto.
+7. **Progresso ao vivo (SSE).** Como `Event.fire` é síncrono, cada fase reporta a
+   um `ProgressTracker` que transmite por Server-Sent Events; o popup do browser
+   evolui com os passos reais do agente.
+8. **Quiz polimórfico + correção por LLM.** O `QuizQuestion` tem `type`
+   (`multiple_choice` | `open`). Numa questão **aberta**, o aluno responde em
+   `<textarea>` e o endpoint `quiz/grade` pede ao LLM um score de **similaridade
+   semântica 0–100** contra a `sampleAnswer`, mapeado no servidor para o veredito
+   (≥70 correta, 50–69 parcial, <50 errada). Detalhe da spec que vale citar: esse
+   endpoint **injeta o `LargeLanguageModel` direto** num resource `@RequestScoped`
+   — funciona porque o LLM do runtime é `@Dependent` (não exige um workflow ativo),
+   então nem todo uso do modelo precisa ser dentro de um agente.
+
+### Os dois agentes
+
+```java
+// Agente 1 — autoria (ordenado, memória de workflow, parse defensivo)
+@Agent(name = "CourseContentAgent")
+class CourseContentAgent {
+    private CoursePacket draft;                                   // estado @WorkflowScoped
+    @Trigger  void onRequest(@Valid CoursePacketRequest r)        // generate | refine
+    @Decision(order = 5)  boolean hasTeachableContent(...)        // gate
+    @Action(order = 10)   void writeIntro(...)                    // prosa (rubrica por matéria)
+    @Action(order = 20)   void writeQuiz(...)  { draft.setQuiz(parseQuiz(model.query(...))); }
+    @Action(order = 30)   void writeConclusion(...)               // usa a memória do workflow
+    @Outcome  void publish(...)                                   // grava no PacketStore
+    @HandleException void onLlmFailure(LLMException e)            // resiliência
+}
+
+// Agente 2 — publicação, disparado por LessonApproved (encadeamento por evento)
+@Agent(name = "PublishAgent")
+class PublishAgent {
+    @Trigger  void onApproved(LessonApproved e)                  // recebe o pacote aprovado
+    @Decision boolean hasApprovedContent(...)
+    @Action   void writeObjectives(...)                          // LLM: "o que você vai aprender"
+    @Outcome  void publish(...)                                  // grava no PublishedLessonStore
+}
+```
+
+### Configuração (Vertex/Claude — nuvem, à prova de demo)
+
+```properties
+payara.agentic.llm.provider=vertex
+payara.agentic.llm.model=claude-sonnet-4-6
+payara.agentic.llm.max-tokens=8192
+payara.agentic.llm.system=You are an expert curriculum designer and teacher...
+```
+
+Vertex autentica por ADC (`gcloud auth application-default login`) ou
+`GOOGLE_ACCESS_TOKEN`; projeto e região vêm de `ANTHROPIC_VERTEX_PROJECT_ID` /
+`CLOUD_ML_REGION`. **Por que Vertex e não Ollama na apresentação:** o backend do
+Ollama tem timeout de **120s por chamada**; um modelo 12B no laptop chega a ~2min
+por chamada e o quiz estoura o limite. Na nuvem responde em segundos.
+
+⚠️ As fórmulas de matemática/física são renderizadas com **MathJax self-hosted**
+(`webapp/vendor/mathjax/tex-svg.js`) — a rubrica pede LaTeX (`$...$`, `$$...$$`) e
+a renderização funciona **offline**.
+
+### Detalhes que valem citar no palco
+
+- A view do aluno (`student.html`) mostra a aula com **quiz interativo** (responde
+  e "Check answers" marca certo/errado + explicação) — o "produto final" que
+  fecha a narrativa gerar → revisar → **publicar** → consumir.
+- Tudo single-author (stores de slot único), coerente com uma demo ao vivo.
+
+---
+
 ## Quiz — Capítulo 8
 
 **1.** No quickstart, por que o record `Question` **não** tem constraints de Bean
@@ -242,6 +356,58 @@ adicionam mesmo instruídos a não fazê-lo; (b) o **refinamento passa o artefat
 atual explicitamente** no prompt em vez de confiar na memória conversacional — o
 modelo edita o estado real. (Bônus: o merge por campo em `refine-field` limita o
 raio de dano de uma resposta ruim a um único campo.)
+</details>
+
+**7.** No Course Content Studio, como os **dois agentes** se comunicam sem nenhum
+orquestrador, e o que dispara o segundo?
+
+<details><summary>Ver resposta</summary>
+
+Por **eventos CDI**. `CourseContentAgent` grava o pacote no `@Outcome`; quando o
+professor aprova, o `CourseResource` dispara o evento `LessonApproved`, que é o
+**`@Trigger`** do segundo agente (`PublishAgent`). A **aprovação humana** é o gate
+entre eles — desacoplamento total, sem código de orquestração. Como `fire` é
+síncrono, a aula já está publicada quando o `approve` retorna.
+</details>
+
+**8.** Por que o `writeQuiz` faz **parse defensivo** (remove cercas e extrai o
+`{…}`) em vez de simplesmente usar o overload tipado `query(prompt, Quiz.class)`?
+
+<details><summary>Ver resposta</summary>
+
+Porque modelos menores costumam embrulhar o JSON em cercas ```` ```json ````
+ou adicionar prosa em volta; o overload tipado entrega isso direto ao JSON-B, que
+lança `LLMException` de desserialização. O `parseQuiz` **remove as cercas, extrai
+o objeto `{…}` e faz o bind para `Quiz`**, com um quiz placeholder como último
+recurso — assim o quiz ruim nunca aborta o workflow e as fases seguintes (conclusão,
+outcome) continuam rodando.
+</details>
+
+**9.** A `@Action writeConclusion` **não** reenvia o texto do capítulo no prompt.
+Por que ela ainda produz uma conclusão coerente?
+
+<details><summary>Ver resposta</summary>
+
+Pela **memória conversacional do workflow**: as chamadas `query()` anteriores
+(intro e quiz) aconteceram na mesma execução `@WorkflowScoped`, e a implementação
+mantém o estado conversacional isolado por workflow (cap. 6). A conclusão se apoia
+nesses turnos anteriores — só pede "amarre a intro e o quiz que você acabou de
+produzir".
+</details>
+
+**10.** A correção de uma **questão aberta** chama o LLM fora de qualquer agente,
+num resource `@RequestScoped`. Por que isso funciona, e como o veredito
+(correta/parcial/errada) é decidido?
+
+<details><summary>Ver resposta</summary>
+
+Funciona porque o `LargeLanguageModel` do runtime é registrado como **`@Dependent`**
+(a isolação por workflow vem da estrutura `@Dependent` + escopo do agente, não de um
+contexto de workflow ativo). Ao injetá-lo num resource, ganha-se uma instância
+própria com conversa vazia — perfeita para uma correção pontual. O endpoint
+`quiz/grade` pede ao LLM um **score de similaridade 0–100** entre a resposta do aluno
+e a `sampleAnswer`, e o **servidor** aplica os limiares (≥70 correta, 50–69 parcial,
+<50 errada) — mantendo a regra determinística fora do modelo.
 </details>
 
 ---

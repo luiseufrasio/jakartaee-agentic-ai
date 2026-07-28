@@ -85,6 +85,90 @@ Duas classes `@ApplicationScoped` que não são testes, mas ferramentas:
     em workflow real.
 - `framework/signature` — testes de assinatura da API (compatibilidade binária).
 
+## Exemplos concretos
+
+Para dar cara a cada bucket, quatro amostras reais do TCK — uma por "sabor" de teste.
+
+### Standalone / reflexão (`core/agent`)
+
+Verifica a **forma** da anotação sem subir container. Barato, roda em qualquer JVM.
+
+```java
+@Standalone
+public class AgentAnnotationTests {
+
+    @Assertion(id = "AGENTICAI-AGENT-003",
+               strategy = "Verify @Agent annotation targets TYPE elements")
+    public void testAgentAnnotationTarget() {
+        Target target = Agent.class.getAnnotation(Target.class);
+        assertNotNull(target, "@Agent must have @Target annotation");
+        ElementType[] targets = target.value();
+        assertEquals(1, targets.length);
+        assertEquals(ElementType.TYPE, targets[0]);
+    }
+}
+```
+
+### Orquestração (`core/behavior/orchestration`)
+
+O clássico: dispara um evento, checa a **sequência de fases** registrada pelo `ExecutionTraceRecorder`. O `AnchoredAgent` prova que a ordem de execução vem da **ordem de declaração no fonte**, não da posição do `@Trigger`/`@Outcome`.
+
+```java
+@RequiresImplementation
+@Assertion(id = "AGENTICAI-ORCHESTRATION-BHV-002",
+           strategy = "@Decision and @Action execute in source-file declaration order; AnchoredAgent "
+                    + "declares @Action BEFORE @Decision so the impl must invoke act() before decide()")
+public void methodsExecuteInDeclarationOrder() {
+    trace.reset();
+    anchoredEvents.fire(new AnchoredEvent("test"));
+    assertThat(trace.phases())
+            .containsExactly(Phase.TRIGGER, Phase.ACTION, Phase.DECISION, Phase.OUTCOME);
+}
+```
+
+### Terminação (`core/behavior/termination`)
+
+Os três padrões de terminação de `@Decision` — cada um vira um teste com **mesma forma** e mesma asserção (`TRIGGER, DECISION` — o pipeline para aí):
+
+```java
+@RequiresImplementation
+@Assertion(id = "AGENTICAI-TERM-004",
+           strategy = "Boolean false from @Decision halts all downstream phases")
+public void booleanFalseTerminatesWorkflow() {
+    trace.reset();
+    booleanEvents.fire(new BooleanTerminationEvent("x"));
+    assertThat(trace.phases()).containsExactly(Phase.TRIGGER, Phase.DECISION);
+}
+// idem para Result(success=false) e para retorno de objeto null
+```
+
+### Propagação de dados (`core/behavior/datapropagation`)
+
+Checa que o valor retornado por uma fase chega como **parâmetro tipado** na próxima. O `trace.entries()` guarda os argumentos recebidos por cada método:
+
+```java
+@RequiresImplementation
+@Assertion(id = "AGENTICAI-DATA-002",
+           strategy = "TriggerOutput returned by @Trigger is injectable as a parameter in @Decision")
+public void triggerOutputIsInjectableInDecision() {
+    llm.enqueueResponse("ok");
+    events.fire(new DataPropagationEvent("input"));
+    assertThat(trace.entries().get(1).args()[1]).isInstanceOf(TriggerOutput.class);
+}
+```
+
+### Contrato do LLM (`core/behavior/llm`)
+
+Cobre o **contrato de erro** do `LargeLanguageModel` — validação de argumentos, mapeamento de placeholders `{}`, serialização via JSON-B, e a garantia de **isolamento por workflow** (estado conversacional não vaza entre execuções). Um exemplo típico:
+
+```java
+@Assertion(strategy = "more parameters than placeholders must throw IllegalArgumentException")
+public void tooManyParamsFailsFast() {
+    assertThrows(IllegalArgumentException.class,
+        () -> llm.chat("Hello {}", "world", "extra"));
+}
+```
+
 ## Comandos de build
 
 ```bash
