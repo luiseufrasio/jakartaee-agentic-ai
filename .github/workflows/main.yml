@@ -16,15 +16,15 @@ jobs:
         runs-on: ubuntu-24.04
         steps:
             - name: Checkout
-              uses: actions/checkout@v4
+              uses: actions/checkout@v7
             - name: Setup Java
-              uses: actions/setup-java@v4
+              uses: actions/setup-java@v6
               with:
                   distribution: 'temurin'
                   java-version: 17
 
             - name: Cache Maven packages
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: ~/.m2/repository
                   key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
@@ -36,34 +36,126 @@ jobs:
             - name: License Check
               run: |
                   set -euo pipefail
+
                   attempt=1
-                  max_attempts=3
-                  base_sleep=15
+                  max_attempts=5
+                  base_sleep=30
+                  max_sleep=300
+                  log="$(mktemp)"
 
-                  until mvn -B \
-                    -Dmaven.wagon.http.retryHandler.count=5 \
-                    -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 \
-                    org.eclipse.dash:license-tool-plugin:license-check \
-                    -Pdash-licenses \
-                    -Ddash.summary=DEPENDENCIES \
-                    -Ddash.fail=true; do
+                  transient_re='HttpTimeoutException|SocketTimeoutException|ConnectException|UnknownHostException|request timed out|Connection reset|connect timed out|50[234] '
 
-                    if [ "$attempt" -ge "$max_attempts" ]; then
-                      echo "License check failed after $max_attempts attempts."
-                      exit 1
-                    fi
+                  while :; do
+                      if mvn -B \
+                          -Dmaven.wagon.http.retryHandler.count=5 \
+                          -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 \
+                          org.eclipse.dash:license-tool-plugin:license-check \
+                          -Pdash-licenses \
+                          -Ddash.summary=DEPENDENCIES \
+                          -Ddash.fail=true 2>&1 | tee "$log"; then
+                          echo "License check passed on attempt ${attempt}/${max_attempts}."
+                          break
+                      fi
 
-                    jitter=$(( RANDOM % 10 ))
-                    sleep_base=$(( base_sleep * (2 ** (attempt - 1)) ))
-                    sleep_base=$(( sleep_base > (60 - 9) ? (60 - 9) : sleep_base ))
-                    sleep_for=$(( sleep_base + jitter ))
-                    echo "License check attempt $attempt/$max_attempts failed (transient upstream/API issue). Retrying in ${sleep_for}s..."
-                    attempt=$(( attempt + 1 ))
-                    sleep "$sleep_for"
+                      if ! grep -qE "$transient_re" "$log"; then
+                          echo "::error title=License check failed::A dependency was rejected by the Eclipse Dash license check. This is not a transient error and was not retried."
+                          cat <<'MSG'
+                  ================================================================
+                  The license check failed for a reason that is not transient, so it
+                  was not retried. Most likely a dependency is restricted or needs
+                  Eclipse IP review.
+
+                  Look for 'restricted' or 'review' entries in the output above, then
+                  either remove the dependency or request a review:
+
+                    https://gitlab.eclipse.org/eclipsefdn/emo-team/iplab/-/issues
+
+                  Approved dependencies are listed in DEPENDENCIES.
+                  ================================================================
+                  MSG
+                          exit 1
+                      fi
+
+                      if [ "$attempt" -ge "$max_attempts" ]; then
+                          echo "::error title=License check unavailable::The Eclipse Dash API was unreachable after ${max_attempts} attempts. This is an upstream outage, not a dependency problem; re-run the job."
+                          exit 1
+                      fi
+
+                      jitter=$(( RANDOM % 10 ))
+                      sleep_base=$(( base_sleep * (2 ** (attempt - 1)) ))
+                      if [ "$sleep_base" -gt "$max_sleep" ]; then
+                          sleep_base=$max_sleep
+                      fi
+                      sleep_for=$(( sleep_base + jitter ))
+                      echo "Attempt ${attempt}/${max_attempts} hit a transient upstream error. Retrying in ${sleep_for}s..."
+                      attempt=$(( attempt + 1 ))
+                      sleep "$sleep_for"
                   done
 
+            - name: Verify DEPENDENCIES is up to date
+              run: |
+                  set -euo pipefail
+
+                  if git diff --quiet -- DEPENDENCIES; then
+                      echo "DEPENDENCIES matches the generated manifest."
+                      exit 0
+                  fi
+
+                  RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+                  cat <<MSG
+                  ================================================================
+                  DEPENDENCIES is out of date.
+
+                  The Eclipse Dash license check regenerated it and the result
+                  differs from the copy committed to this repository. The committed
+                  file is the manifest that IP review reads, so it needs updating.
+
+                  Fix it either way:
+
+                  1. Download the generated file from this run and commit it:
+                       ${RUN_URL}
+                     It is the artifact named "DEPENDENCIES". Or with the gh CLI:
+                       gh run download ${GITHUB_RUN_ID} --repo ${GITHUB_REPOSITORY} \\
+                         --name DEPENDENCIES --dir .
+
+                  2. Or regenerate it locally and commit it:
+                       mvn -B org.eclipse.dash:license-tool-plugin:license-check \\
+                         -Pdash-licenses -Ddash.summary=DEPENDENCIES
+
+                     Note: if the Dash API times out, the plugin leaves
+                     DEPENDENCIES truncated. Recover with:
+                       git checkout -- DEPENDENCIES
+
+                  The diff below is committed (-) versus generated (+).
+                  ================================================================
+                  MSG
+
+                  git --no-pager diff -- DEPENDENCIES
+
+                  {
+                      echo "### DEPENDENCIES is out of date"
+                      echo
+                      echo "Download the [generated manifest from this run](${RUN_URL}) (artifact \`DEPENDENCIES\`) and commit it, or regenerate locally:"
+                      echo
+                      echo '```'
+                      echo 'mvn -B org.eclipse.dash:license-tool-plugin:license-check -Pdash-licenses -Ddash.summary=DEPENDENCIES'
+                      echo '```'
+                      echo
+                      echo '<details><summary>Diff (committed → generated)</summary>'
+                      echo
+                      echo '```diff'
+                      git --no-pager diff -- DEPENDENCIES
+                      echo '```'
+                      echo
+                      echo '</details>'
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+                  echo "::error title=DEPENDENCIES is out of date::Commit the regenerated manifest. See this step's log and the run summary for the diff and instructions."
+                  exit 1
+
             - name: Upload DEPENDENCIES
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               if: always()
               with:
                   name: DEPENDENCIES

@@ -12,7 +12,7 @@ This project aims to create an Agentic AI API for Jakarta EE. We will try to do 
 
 * Defines common usage patterns and life cycles for AI agents running on Jakarta EE runtimes.
 * Provides a very minimal facade to access more foundational AI capabilities, such as LLMs, without attempting to standardize LLMs. Instead, the API provides easy, pluggable, and configurable access to existing LLM APIs such as LangChain4j and Spring AI. This is similar to how Jakarta Persistence provides access to underlying non-standard APIs by unwrapping.
-* The API will include a mechanism to define agent workflows. This will be done using a fluent Java API (as opposed to XML). The agent workflow will likely be dynamic at runtime rather than strictly defined and static at deployment time. A pluggability mechanism may be provided for YAML and XML.
+* The API will include a mechanism to define agent workflows. This will be done using a fluent Java API (as opposed to XML). The agent workflow may be dynamic at runtime rather than strictly defined and static at deployment time. A pluggability mechanism may be provided for YAML and XML.
 * Defines integrations with other key Jakarta EE APIs such as Validation, REST, JSON Binding, Persistence, Data, Transactions, NoSQL, Concurrency, Security, Messaging, and so on.
 * The project will aim to utilize Jakarta Config if possible. It may allow implementations to utilize MicroProfile Config.
 * Implementations may provide integrations with OpenTelemetry.
@@ -22,7 +22,7 @@ This project aims to create an Agentic AI API for Jakarta EE. We will try to do 
 
 The initial version is very intentionally minimal. The release seeks to build early momentum, including broadening awareness, participation, and adoption. Subsequently, we aim to iterate quickly based on evolving industry knowledge on Agentic AI as well as user feedback.
 
-The initial release focuses on key programming models, patterns, life cycles, as well as a lightweight LLM facade. Subsequent releases will likely focus more on a programmatic life cycle management, a workflow API and advanced features.
+The initial release focuses on key programming models, patterns, life cycles, as well as a lightweight LLM facade. Subsequent releases will likely focus more on a programmatic life cycle management, a workflow API, and advanced features.
 
 Specifically 1.0 focuses on:
 * <b>@Agent</b> annotation to define an agent and it's basic life-cycle/scope
@@ -49,6 +49,7 @@ public class FraudDetectionAgent {
 
     // Injects default LLM in the implementation, but can be configured to inject specific ones.
     @Inject private LargeLanguageModel model;
+    // Regular CDI features just work.
     @Inject private EntityManager entityManager;
 
     // Initiates the agent workflow. For this initial release, the workflow can only be triggered by
@@ -71,7 +72,7 @@ public class FraudDetectionAgent {
     // In subsequent releases, more robust decision flows should be possible, either with
     // annotations/EL and/or the programmatic workflow API.
     @Decision
-    private Result checkFraud (BankTransaction transaction) {
+    private Result checkFraud(BankTransaction transaction) {
         /*
          * One of the value propositions of the LLM facade is automatic type conversion in Java,
          * both for parameters and return types.
@@ -91,7 +92,7 @@ public class FraudDetectionAgent {
                                                // possibly involving database queries.
         }
  
-        return new Result (fraud, details);
+        return new Result(fraud, details);
     }
 
     // Only one action here, but there could be multiple actions and/or decisions in sequence.
@@ -100,7 +101,7 @@ public class FraudDetectionAgent {
     // pre-conditions for actions defined via annotation/EL.
     @Action
     // Notice that we are automatically injecting domain objects from the workflow context.
-    private void handleFraud (Fraud fraud, BankTransaction transaction) {
+    private void handleFraud(Fraud fraud, BankTransaction transaction) {
         /*
          * IMPORTANT FUNDAMENTAL CONCEPT:
          * This is an example of hard-coded logic, which would still be possible if desired.
@@ -182,4 +183,21 @@ The power of this API shines when you need to write agents that need to adapt th
 The project aims to do for AI agent developers what Jakarta REST did for REST service developers, for example. Therefore, making it an official Jakarta specification makes perfect sense. The goal is also to ensure that agents implemented using the API work well with other Jakarta EE technologies and runtimes, such as CDI, etc.
 
 ### Is this an LLM API like Spring AI and LangChain4j?
-This is not an LLM API. It is an API that will help you write better AI agents using Jakarta EE. In your agent code you very likely will be using LLMs. For that reason, we provide a very simple LLM facade. Implementations will likely use Spring AI and LangChain4j under the hood of that facade. The facade also let's you easily access Spring AI, LangChain4j, etc directly when you need it.
+This is not an LLM API. It is an API that will help you write better AI agents using Jakarta EE. In your agent code you very likely will be using LLMs. For that reason, we provide a very simple LLM facade. Implementations will likely use Spring AI and LangChain4j under the hood of that facade. The facade also let's you easily access Spring AI, LangChain4j, etc directly when you need it. That said, a separate full-fledged Jakarta LLM API is also conceivable in the future.
+
+Put another way, this does not compete with LangChain4j or Spring AI — it standardizes. Those are excellent single-vendor libraries; Jakarta Agentic AI is a *specification*: you program against `jakarta.ai.agent` and switch implementations or providers without rewriting. An implementation may even use LangChain4j or Spring AI underneath, and `unwrap()` exists precisely to reach what the facade does not expose.
+
+### What if the LLM hallucinates or fails mid-workflow?
+Service failures surface as `LLMException`, which is catchable by an `@HandleException` method (return normally to continue the workflow, or rethrow to stop it). Typed responses go through Jakarta JSON Binding, so a malformed reply raises `LLMException` rather than silently corrupting data. The [examples](examples/) also show applied defenses such as stripping code fences from model output and merging refinements field by field.
+
+### Is this asynchronous? Does it scale?
+In 1.0 the workflow runs synchronously on the `Event.fire` thread, which keeps the programming model simple and makes the result available within the same request. Nothing stops the caller from firing the triggering event from a managed executor or a virtual thread. Broader asynchronous orchestration is a candidate for future versions.
+
+### Why CDI events as the trigger, and not a method I call directly?
+Decoupling — the firer does not need to know the agent — and it is infrastructure that every Jakarta EE runtime already provides. It also enables natural fan-out: one event can trigger several agents. The specification already anticipates other trigger sources in the future, such as Jakarta Messaging, REST endpoints, and programmatic invocation.
+
+### Can multiple agents collaborate?
+Yes, through events. One agent's `@Action` or `@Outcome` can inject an `Event<X>` and fire another agent's trigger. First-class multi-agent orchestration is a topic for future versions.
+
+### Can I run it locally, and what does it cost?
+Yes. Some [examples](examples/) run entirely on a local Ollama model — no API key, no network, no cost. Others use a hosted model such as Claude for higher output quality (with prompt caching to reduce cost) but can also fall back to Ollama. The choice of LLM backend is configuration, not code.

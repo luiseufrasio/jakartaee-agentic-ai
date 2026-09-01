@@ -15,6 +15,14 @@
     <name>Jakarta Agentic AI Specification</name>
     <description>Specification for Jakarta Agentic AI.</description>
 
+    <licenses>
+        <license>
+            <name>Eclipse Foundation Specification License - v2.0</name>
+            <url>https://www.eclipse.org/legal/efsl.php</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <properties>
         <maven.build.timestamp.format>MMMM dd, yyyy</maven.build.timestamp.format>
         <revisiondate>${maven.build.timestamp}</revisiondate>
@@ -89,6 +97,10 @@
                             <doctype>article</doctype>
                             <attributes>
                                 <imagesdir>images</imagesdir>
+                                <project-version>${project.version}</project-version>
+                                <revnumber>${spec.version}</revnumber>
+                                <revremark>${spec.status}</revremark>
+                                <revdate>${revisiondate}</revdate>
                             </attributes>
                         </configuration>
                     </execution>
@@ -100,4 +112,28 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>stage-release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <configuration>
+                            <skip>true</skip>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <skip>true</skip>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

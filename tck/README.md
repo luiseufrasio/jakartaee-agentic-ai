@@ -88,11 +88,52 @@ public void testAgentAnnotationExists() {
 - NormalScope compliance
 - Literal class implementation
 
+## API signature baseline
+
+`src/main/resources/ee/jakarta/tck/ai/agent/framework/signature/jakarta.ai.agent.sig_1.0`
+records the exact public signature of the `jakarta.ai.agent` package. It ships
+inside the TCK jar, so implementors receive the baseline they are verified
+against.
+
+Every build compares the API to it via `sigtest-maven-plugin` in `strictcheck`
+mode, which is bidirectional: removing, changing **or adding** a public member
+fails the build. A one-way check would let additions through as
+backward-compatible, which is not what a specification wants.
+
+When an API change is intended, regenerate the baseline and commit it:
+
+```bash
+mvn -pl tck verify -Psignature-generation
+```
+
+Review the diff before committing — it is the record of what the specification
+promises.
+
 ## Requirements
 
 - Java 17 or higher
+- Jakarta EE 10 or higher
 - Maven 3.8+
-- Jakarta CDI 4.1+ (for CDI-related tests)
+- A Jakarta JSON Binding provider on the test classpath
+
+The TCK does not ship a JSON-B provider, so that it does not impose one on
+implementations. A Jakarta EE 10 runtime already supplies one, so nothing extra
+is needed when the TCK runs inside a container. When running the tests outside a
+container, add a provider yourself, for example:
+
+```xml
+<dependency>
+    <groupId>org.eclipse</groupId>
+    <artifactId>yasson</artifactId>
+    <version>3.0.3</version>
+    <scope>test</scope>
+</dependency>
+```
+
+A provider is required because `LargeLanguageModelStub` performs the type
+conversion mandated of `LargeLanguageModel` via `JsonbBuilder.create()`, and
+`LlmContractTests` asserts JSON Binding semantics directly. Without one, those
+assertions error rather than fail informatively.
 
 ## License
 
