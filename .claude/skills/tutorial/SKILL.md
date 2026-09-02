@@ -22,7 +22,8 @@ Código-fonte de referência (leia quando o usuário pedir mais profundidade):
 - Spec API: `api/src/main/java/jakarta/ai/agent/` (neste repo)
 - TCK: `tck/src/main/java/ee/jakarta/tck/ai/agent/` (neste repo)
 - Implementação: `C:\Users\luise\git\Payara\appserver\agentic-ai\agentic-ai-core\src\main\java\fish\payara\ai\agent\`
-- Samples: `C:\Users\luise\git\Payara\appserver\tests\payara-samples\samples\agentic-ai-quickstart` e `...\samples\agentic-ai`
+- Samples: `examples/quickstart`, `examples/tutorial-generator`, `examples/course-content-studio` (neste repo)
+- Gêmeos Payara dos dois primeiros (com testes Arquillian): `C:\Users\luise\git\Payara\appserver\tests\payara-samples\samples\agentic-ai-quickstart` e `...\samples\agentic-ai`
 
 ## Como conduzir
 

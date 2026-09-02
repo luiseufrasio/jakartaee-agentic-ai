@@ -1,13 +1,40 @@
 # Tutorials — Jakarta Agentic AI
 
-English study material for the Payara Conference talk (August 2026), generated
-from the Portuguese source tutorial in `.claude/tutorial/`.
+Study material for the Payara Conference talk (August 2026), in **three
+languages** — English, Español and Português. Everything is generated from the
+Markdown sources listed below; the Portuguese source in `.claude/tutorial/` is
+also what the `/tutorial` Claude Code skill reads, so it stays the single source
+of truth for that language.
 
 | Folder | What it is | How to open |
 | --- | --- | --- |
-| `md/` | The full tutorial translated to English — 9 chapters + index, each ending with a quiz (answers behind `▸ Show answer`). | Any Markdown viewer / GitHub |
-| `html/` | **Interactive single-page tutorial**: sidebar navigation, Payara branding, syntax-highlighted code, and self-scored quizzes with progress saved in `localStorage`. | Open `html/index.html` in a browser |
-| `presentation/` | **Slide deck** (16:9) covering the talk narrative: problem → spec → demos → implementation internals → TCK → roadmap. | Open `presentation/index.html` in a browser |
+| `md/` | The tutorial in **English** — 9 chapters + index, each ending with a quiz (answers behind `▸ Show answer`). | Any Markdown viewer / GitHub |
+| `md-es/` | The same tutorial in **Español**. | Any Markdown viewer / GitHub |
+| `../.claude/tutorial/` | The same tutorial in **Português** (the source the `/tutorial` skill reads). | Any Markdown viewer / GitHub |
+| `html/` | **Interactive single-page tutorial**, trilingual: sidebar navigation, Payara branding, syntax-highlighted code, and self-scored quizzes with progress saved in `localStorage`. | Open `html/index.html` in a browser |
+| `presentation/` | **Slide deck** (16:9), trilingual, covering the talk narrative: problem → spec → demos → implementation internals → TCK → roadmap. | Open `presentation/index.html` in a browser |
+| `samples-presentation/` | **Slide deck** (16:9), trilingual, for the samples-focused session. | Open `samples-presentation/index.html` in a browser |
+
+## Languages
+
+Every HTML artifact carries all three languages in one file and switches
+client-side — no page reload, no separate URLs to keep in sync:
+
+| Flag | Language | Chapter source |
+| --- | --- | --- |
+| 🇺🇸 | English | `md/` |
+| 🇪🇸 | Español | `md-es/` |
+| 🇧🇷 | Português | `../.claude/tutorial/` |
+
+- **Tutorial**: the flag buttons sit at the top of the sidebar. Switching keeps
+  the current chapter, and quiz scores are shared across languages (question *n*
+  of chapter *k* is the same question in every language).
+- **Decks**: the flags sit at the top-left corner and survive overview mode.
+  Switching keeps the current slide, and the presenter window (`P`) reopens with
+  the speaker notes in the new language.
+- The choice is remembered in `localStorage` and reflected in the URL
+  (`?lang=es`), so a link can pin a language. With nothing set, the page falls
+  back to the browser's language, then to English.
 
 ## Interactive tutorial (`html/`)
 
@@ -27,6 +54,10 @@ cd tutorials/html
 npm install marked   # first time only
 node build.mjs
 ```
+
+`build.mjs` reads all three languages and emits a single `index.html`. To add a
+chapter or change the UI strings of a language, edit the `LANGS` array at the top
+of the script.
 
 ## Presentation (`presentation/`)
 

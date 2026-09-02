@@ -2,8 +2,8 @@
 
 ## A fachada
 
-`LargeLanguageModel` é a **única interface funcional da API** — uma fachada
-minimalista, injetável via CDI, para conversar com o modelo:
+`LargeLanguageModel` é a **única interface da API** — uma fachada minimalista,
+injetável via CDI, para conversar com o modelo:
 
 ```java
 public interface LargeLanguageModel {

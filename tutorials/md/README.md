@@ -7,7 +7,7 @@ implementation, and the samples. It covers three layers:
 | --- | --- | --- |
 | **Specification** | `jakartaee-agentic-ai` repository | The `jakarta.ai.agent` API, the spec document and the TCK |
 | **Implementation** | `Payara\appserver\agentic-ai\agentic-ai-core` | The Payara runtime: CDI extension, workflow engine, LLM backends |
-| **Samples** | `payara-samples\samples\agentic-ai-quickstart` and `...\samples\agentic-ai` | Quickstart (question/answer) and Tutorial Generator (generation + chat refinement) |
+| **Samples** | `examples/` in this repository | `quickstart` (question/answer), `tutorial-generator` (generation + chat refinement) and `course-content-studio` (two agents + approval gate). Payara-flavoured twins of the first two, carrying the Arquillian tests, live under `payara-samples\samples\`. |
 
 ## How to use it
 

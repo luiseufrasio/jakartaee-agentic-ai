@@ -103,7 +103,7 @@ td code{white-space:nowrap}
 /* chrome: progress + counter + help */
 #bar{position:fixed;bottom:0;left:0;height:5px;background:linear-gradient(90deg,var(--orange),#ffbf69);width:0;z-index:10;transition:width .2s}
 #counter{position:fixed;bottom:14px;right:20px;font-family:var(--mono);font-size:13px;color:var(--faint);z-index:10}
-#help{position:fixed;top:14px;right:20px;font-family:var(--mono);font-size:12px;color:rgba(255,255,255,.25);z-index:10}
+#help{position:fixed;top:16px;left:20px;font-family:var(--mono);font-size:12px;color:rgba(255,255,255,.25);z-index:10}
 #presenter-btn{position:fixed;bottom:12px;left:20px;z-index:10;background:var(--navy-soft);color:var(--ink);border:1px solid var(--orange);border-radius:8px;padding:7px 14px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer}
 #presenter-btn:hover{background:#173047}
 body.overview #presenter-btn{display:none}
@@ -115,9 +115,18 @@ body.overview #grid{display:grid;position:fixed;inset:0;overflow-y:auto;grid-tem
 #grid .thumb .t-label{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;padding:10px;text-align:center}
 #grid .thumb .t-num{font-family:var(--mono);font-size:12px;color:var(--orange)}
 #grid .thumb .t-title{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.3}
+
+/* language switcher */
+#langbar{position:fixed;top:12px;right:20px;z-index:30;display:flex;gap:6px}
+#langbar button{display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.16);border-radius:8px;padding:5px 8px;line-height:0;cursor:pointer;opacity:.5;transition:opacity .15s,border-color .15s,background .15s}
+#langbar button svg{display:block;border-radius:2px}
+#langbar button:hover{opacity:.9;background:rgba(255,255,255,.12)}
+#langbar button.active{opacity:1;border-color:var(--orange);background:rgba(238,153,47,.18)}
+body.overview #langbar{display:flex}
 </style>
 </head>
 <body>
+<div id="langbar"></div>
 <div id="stage"></div>
 <div id="grid"></div>
 <div id="bar"></div><div id="counter"></div>
@@ -146,8 +155,11 @@ function txt(code,sm){return '<pre'+(sm?' class="sm"':'')+'><code>'+esc(code)+'<
 const fish='<svg width="86" height="86" viewBox="0 0 34 34" fill="none"><rect width="34" height="34" rx="8" fill="#ee992f"/><path d="M6 17c3.2-4.6 7.6-7 12.2-7 3.4 0 6.6 1.3 9.3 3.8l-2.3 3.2 2.3 3.2c-2.7 2.5-5.9 3.8-9.3 3.8-4.6 0-9-2.4-12.2-7z" fill="#001b27"/><circle cx="22.6" cy="15.4" r="1.5" fill="#ee992f"/></svg>';
 
 /* ═══════════════════ SLIDES ═══════════════════ */
-const slides = [];
-function S(title, html, cls){ slides.push({title, html, cls: cls||''}); }
+const DECKS = { en: [], pt: [], es: [] };
+const LANG_META = { en: "<svg viewBox=\"0 0 24 16\" width=\"23\" height=\"15\" aria-hidden=\"true\"><rect width=\"24\" height=\"16\" fill=\"#fff\"/><g fill=\"#b22234\"><rect width=\"24\" height=\"1.23\"/><rect y=\"2.46\" width=\"24\" height=\"1.23\"/><rect y=\"4.92\" width=\"24\" height=\"1.23\"/><rect y=\"7.38\" width=\"24\" height=\"1.23\"/><rect y=\"9.85\" width=\"24\" height=\"1.23\"/><rect y=\"12.31\" width=\"24\" height=\"1.23\"/><rect y=\"14.77\" width=\"24\" height=\"1.23\"/></g><rect width=\"9.6\" height=\"8.62\" fill=\"#3c3b6e\"/><g fill=\"#fff\"><circle cx=\"1.0\" cy=\"1.1\" r=\".42\"/><circle cx=\"2.9\" cy=\"1.1\" r=\".42\"/><circle cx=\"4.8\" cy=\"1.1\" r=\".42\"/><circle cx=\"6.7\" cy=\"1.1\" r=\".42\"/><circle cx=\"8.6\" cy=\"1.1\" r=\".42\"/><circle cx=\"1.0\" cy=\"3.2\" r=\".42\"/><circle cx=\"2.9\" cy=\"3.2\" r=\".42\"/><circle cx=\"4.8\" cy=\"3.2\" r=\".42\"/><circle cx=\"6.7\" cy=\"3.2\" r=\".42\"/><circle cx=\"8.6\" cy=\"3.2\" r=\".42\"/><circle cx=\"1.0\" cy=\"5.3\" r=\".42\"/><circle cx=\"2.9\" cy=\"5.3\" r=\".42\"/><circle cx=\"4.8\" cy=\"5.3\" r=\".42\"/><circle cx=\"6.7\" cy=\"5.3\" r=\".42\"/><circle cx=\"8.6\" cy=\"5.3\" r=\".42\"/><circle cx=\"1.0\" cy=\"7.4\" r=\".42\"/><circle cx=\"2.9\" cy=\"7.4\" r=\".42\"/><circle cx=\"4.8\" cy=\"7.4\" r=\".42\"/><circle cx=\"6.7\" cy=\"7.4\" r=\".42\"/><circle cx=\"8.6\" cy=\"7.4\" r=\".42\"/></g></svg>", es: "<svg viewBox=\"0 0 24 16\" width=\"23\" height=\"15\" aria-hidden=\"true\"><rect width=\"24\" height=\"16\" fill=\"#c60b1e\"/><rect y=\"4\" width=\"24\" height=\"8\" fill=\"#ffc400\"/></svg>", pt: "<svg viewBox=\"0 0 24 16\" width=\"23\" height=\"15\" aria-hidden=\"true\"><rect width=\"24\" height=\"16\" fill=\"#009b3a\"/><path d=\"M12 2.2 21.4 8 12 13.8 2.6 8Z\" fill=\"#fedf00\"/><circle cx=\"12\" cy=\"8\" r=\"3.4\" fill=\"#002776\"/><path d=\"M8.7 7.2c2.3-1.1 4.9-.6 6.7 1.2\" stroke=\"#fff\" stroke-width=\".9\" fill=\"none\"/></svg>" };
+const LANG_NAME = { en: 'English', es: 'Espa\u00f1ol', pt: 'Portugu\u00eas' };
+let __L = 'en';
+function S(title, html, cls){ DECKS[__L].push({title, html, cls: cls||''}); }
 
 /* 1 — Title */
 S('Title', `
@@ -203,7 +215,7 @@ public class QuestionAgent {
   <div class="col"><p class="panel-label">microprofile-config.properties — the whole migration</p>
   ${props(`# BEFORE
 payara.agentic.llm.provider=ollama
-payara.agentic.llm.model=gemma4:12b
+payara.agentic.llm.model=gemma3:4b
 
 # AFTER
 payara.agentic.llm.provider=anthropic
@@ -246,18 +258,18 @@ S('Three samples', `
 <h2>Three samples, rising in ambition</h2>
 <table>
   <tr><th>Sample</th><th>What it shows</th><th>Provider — config only</th></tr>
-  <tr><td><code>agentic-ai-quickstart</code></td><td>The four phases, minimal</td><td>Ollama · gemma4:12b</td></tr>
-  <tr><td><code>agentic-ai</code> · Tutorial Generator</td><td>Generate + refine by chat</td><td>Vertex · Claude</td></tr>
+  <tr><td><code>quickstart</code></td><td>The four phases, minimal</td><td>Ollama · gemma3:4b</td></tr>
+  <tr><td><code>tutorial-generator</code></td><td>Generate + refine by chat</td><td>Vertex · Claude</td></tr>
   <tr><td><code>course-content-studio</code></td><td>Two agents by events + LLM grading</td><td>Vertex · Claude</td></tr>
 </table>
 <p class="small muted" style="margin-top:22px">Same programming model in all three. The only real difference between them is <code>microprofile-config.properties</code>.</p>`);
 
 /* 8 — Quickstart */
 S('Quickstart', `
-<p class="kicker">Sample 1 · agentic-ai-quickstart</p>
+<p class="kicker">Sample 1 · examples/quickstart</p>
 <h2>The smallest agent that exercises all four phases</h2>
 <div class="cols grow">
-<div class="col">${txt(`POST /agentic-ai-quickstart/api/ask
+<div class="col">${txt(`POST /quickstart/api/ask
   { "question": "..." }
         │  Event.fire(Question)   ← synchronous
         ▼
@@ -314,18 +326,18 @@ POST /ask  "Where were they born?"   → workflow #2
 
 /* 10 — Tutorial Generator */
 S('Tutorial Generator', `
-<p class="kicker">Sample 2 · agentic-ai</p>
+<p class="kicker">Sample 2 · examples/tutorial-generator</p>
 <h2>Write a form guide — then <em>refine it by chat</em></h2>
 <div class="cols grow">
-<div class="col">${txt(`GET  /agentic-ai/                     UI: form + guide + chat
-POST /agentic-ai/api/tutorial/generate      a fresh guide
-POST /agentic-ai/api/tutorial/refine        the whole guide
-POST /agentic-ai/api/tutorial/refine-field  only ONE field`,true)}</div>
+<div class="col">${txt(`GET  /tutorial-generator/                     UI: form + guide + chat
+POST /tutorial-generator/api/tutorial/generate      a fresh guide
+POST /tutorial-generator/api/tutorial/refine        the whole guide
+POST /tutorial-generator/api/tutorial/refine-field  only ONE field`,true)}</div>
 <div class="col"><ul style="font-size:17px">
   <li><strong>Single source of truth</strong> — the form spec renders the live form AND feeds the agent</li>
   <li><strong>The event carries the mode</strong> — currentHtml null ⇒ generate; filled ⇒ refine</li>
   <li><strong>Edit the artifact, not the memory</strong> — the current guide travels in the prompt</li>
-  <li>Provider: <strong>Anthropic</strong> Claude, for HTML quality</li>
+  <li>Provider: Claude on <strong>Vertex</strong> (<code>claude-sonnet-4-6</code>), for output quality</li>
 </ul></div></div>`);
 
 /* 11 — TG design */
@@ -368,8 +380,8 @@ S('Two agents by events', `
 <div class="cols grow">
 <div class="col">${txt(`CourseContentAgent   (@WorkflowScoped)
   @Trigger   onRequest          generate | refine
-  @Decision  hasTeachableContent   (order 5)
-  @Action    writeIntro / writeQuiz / writeConclusion
+  @Decision  hasTeachableContent   (order 1)
+  @Action    writeIntro / writeQuiz / writeConclusion  (order 2/3/4)
   @Outcome   publish → PacketStore
 
         │  teacher approves
@@ -427,7 +439,7 @@ S('The through-line', `
 <h2>Same agent style — provider by <em>config</em></h2>
 <table>
   <tr><th>Sample</th><th>Agent code</th><th>Provider (properties only)</th></tr>
-  <tr><td>Quickstart</td><td>@Agent + 4 phases</td><td>ollama / gemma4:12b</td></tr>
+  <tr><td>Quickstart</td><td>@Agent + 4 phases</td><td>ollama / gemma3:4b</td></tr>
   <tr><td>Tutorial Generator</td><td>@Agent + generate/refine</td><td>vertex / claude sonnet</td></tr>
   <tr><td>Course Content Studio</td><td>two @Agents + events</td><td>vertex / claude sonnet</td></tr>
 </table>
@@ -455,9 +467,630 @@ S('Thank you', `
   <p class="meta" style="margin-top:36px;font-family:var(--mono);font-size:16px;color:var(--faint)"><b style="color:var(--ink)">Luís Neto</b> · Payara DEMO · July 2026</p>
 </div>`, 's-title');
 
+/* ═══════════════════ SLIDES — PORTUGUÊS ═══════════════════ */
+__L = 'pt';
+
+/* 1 — Título */
+S('Título', `
+<div class="center s-title-inner">
+  <div class="bigfish">${fish}</div>
+  <h1>Jakarta <em>Agentic AI</em></h1>
+  <p class="sub">Os samples, em ação — o mesmo código de agente, três apps reais,
+  e o provedor trocado por um único arquivo de configuração.</p>
+  <p class="meta"><b>Luís Neto</b> · Payara DEMO · Julho de 2026</p>
+</div>`, 's-title');
+
+/* 2 — O que é */
+S('O que é', `
+<p class="kicker">Motivação</p>
+<h2>Um agente é só um <em>bean CDI</em></h2>
+<div class="grow"><ul>
+  <li>Ele <strong>percebe</strong> um evento, <strong>raciocina</strong> com um LLM, <strong>decide</strong> se prossegue e <strong>age</strong> — dentro de um workflow de fases.</li>
+  <li>Você programa contra anotações e uma interface, <code>LargeLanguageModel</code>.</li>
+  <li>O <strong>servidor</strong> fornece o engine de orquestração e a integração com o provedor.</li>
+</ul>
+<p class="muted" style="margin-top:26px">A analogia com Jakarta Persistence: programe contra <code>EntityManager</code>, deixe o Hibernate implementar. Aqui: programe contra <code>@Agent</code>, deixe a Payara executar.</p>
+</div>`);
+
+/* 3 — O problema */
+S('O problema', `
+<p class="kicker">Motivação</p>
+<h2>Três problemas que a spec ataca</h2>
+<div class="cols grow"><div class="col">
+  <div class="card"><h3>Vendor lock-in</h3><p class="small">Trocar de provedor de LLM significa reescrever o código do agente. Aqui é configuração do servidor.</p></div>
+  <div class="card"><h3>Sem integração com o container</h3><p class="small">DI, escopos, eventos, validação — reinventados por framework. A spec se apoia no CDI.</p></div>
+</div><div class="col">
+  <div class="card"><h3>Workflows ad-hoc</h3><p class="small">Cada app inventa sua máquina de estados. A spec define Trigger → Decision* → Action* → Outcome.</p></div>
+  <div class="card"><h3>A prova</h3><p class="small">Três samples hoje, escritos do mesmo jeito — só o arquivo de propriedades difere.</p></div>
+</div></div>`);
+
+/* 4 — Um arquivo de config */
+S('Um arquivo de config', `
+<p class="kicker">Motivação · a recompensa</p>
+<h2>Trocar Ollama (local) → Claude: <em>editar um arquivo</em></h2>
+<div class="cols grow">
+  <div class="col"><p class="panel-label">Código do agente — nenhum vendor em lugar nenhum</p>
+  ${java(`@Agent
+public class QuestionAgent {
+  @Inject
+  LargeLanguageModel model;   // jakarta.ai.agent
+
+  @Action
+  void generate(Question q, AnswerStore out) {
+    out.put(q.text(),
+      model.query("Answer concisely: {}", q.text()));
+  }
+}`,true)}</div>
+  <div class="col"><p class="panel-label">microprofile-config.properties — a migração inteira</p>
+  ${props(`# ANTES
+payara.agentic.llm.provider=ollama
+payara.agentic.llm.model=gemma3:4b
+
+# DEPOIS
+payara.agentic.llm.provider=anthropic
+payara.agentic.llm.model=claude-opus-4-8`)}
+  <p class="small muted">Zero código · zero pom · no máximo um redeploy</p></div>
+</div>`);
+
+/* 5 — O modelo de fases */
+S('O modelo de fases', `
+<p class="kicker">Motivação · o modelo mental</p>
+<h2>Um workflow de <em>fases</em></h2>
+<div class="grow">
+<div class="flow">
+  <div class="fbox f-trigger">@Trigger<small>obrigatório · 1<br>evento CDI</small></div><div class="farrow">→</div>
+  <div class="fbox f-mid">@Decision<small>0..N · pode parar</small></div><div class="farrow">→</div>
+  <div class="fbox f-mid">@Action<small>0..N · o trabalho</small></div><div class="farrow">→</div>
+  <div class="fbox f-out">@Outcome<small>0..1 · encerra</small></div>
+</div>
+<div class="fexc">@HandleException — captura exceções de QUALQUER fase</div>
+<ul style="margin-top:28px">
+  <li>Dispare um evento CDI → o workflow inteiro roda <strong>sincronamente</strong> naquela thread</li>
+  <li>Os dados fluem entre as fases <strong>por tipo</strong> — sem passar parâmetro na mão</li>
+  <li>Uma decision devolvendo false/null <strong>para</strong> o workflow de forma limpa</li>
+</ul></div>`);
+
+/* 6 — Spec × implementação */
+S('Spec × implementação', `
+<p class="kicker">Motivação</p>
+<h2>CDI puro dispara o trigger — <em>a Payara roda o resto</em></h2>
+<div class="cols grow"><div class="col"><ul style="font-size:19px">
+  <li>O <code>@Trigger</code> é só um observer de evento CDI — CDI puro conseguiria invocá-lo</li>
+  <li>Mas <code>@Decision</code>/<code>@Action</code>/<code>@Outcome</code>, dado-por-tipo, terminação e despacho de exceções precisam de um <strong>engine</strong></li>
+  <li>O <code>agentic-ai-core</code> da Payara fornece isso — uma <strong>extensão CDI portável</strong>, sem SPI proprietária</li>
+</ul></div>
+<div class="col"><div class="card"><h3>O que isso significa hoje</h3><p>Tudo que você vai ver rodando — três samples — é Jakarta EE padrão: beans CDI, eventos CDI, MicroProfile Config. O código do agente não tem classe base de framework e não nomeia provedor nenhum.</p></div></div></div>`);
+
+/* 7 — Três samples */
+S('Três samples', `
+<p class="kicker">Os samples</p>
+<h2>Três samples, em ambição crescente</h2>
+<table>
+  <tr><th>Sample</th><th>O que mostra</th><th>Provedor — só config</th></tr>
+  <tr><td><code>quickstart</code></td><td>As quatro fases, mínimo</td><td>Ollama · gemma3:4b</td></tr>
+  <tr><td><code>tutorial-generator</code></td><td>Gerar + refinar por chat</td><td>Vertex · Claude</td></tr>
+  <tr><td><code>course-content-studio</code></td><td>Dois agentes por eventos + correção por LLM</td><td>Vertex · Claude</td></tr>
+</table>
+<p class="small muted" style="margin-top:22px">O mesmo modelo de programação nos três. A única diferença real entre eles é o <code>microprofile-config.properties</code>.</p>`);
+
+/* 8 — Quickstart */
+S('Quickstart', `
+<p class="kicker">Sample 1 · examples/quickstart</p>
+<h2>O menor agente que exercita as quatro fases</h2>
+<div class="cols grow">
+<div class="col">${txt(`POST /quickstart/api/ask
+  { "question": "..." }
+        │  Event.fire(Question)   ← síncrono
+        ▼
+  QuestionAgent (@WorkflowScoped default)
+  [TRIGGER] → [DECISION] → [ACTION] → [OUTCOME]
+        │
+  AnswerStore  →  { "question", "answer" }`,true)}</div>
+<div class="col"><ul style="font-size:18px">
+  <li><code>Event.fire</code> é <strong>síncrono</strong> — a resposta do LLM viaja no mesmo HTTP response</li>
+  <li>Pergunta vazia → a <code>@Decision</code> devolve <code>Result(false, …)</code> → terminação antecipada</li>
+  <li>Provedor: <strong>Ollama</strong> local, grátis, offline — uma primeira execução ao vivo segura</li>
+</ul></div></div>`);
+
+/* 9 — Código do quickstart */
+S('Quickstart — o agente', `
+<p class="kicker">Sample 1 · o código</p>
+<h2>Quatro fases, cada uma logando seu prefixo</h2>
+${java(`@Agent(name = "QuestionAgent")
+public class QuestionAgent {
+    @Inject LargeLanguageModel model;
+    @Inject AnswerStore answers;
+
+    @Trigger  void onQuestion(@Valid Question q) { }                    // [TRIGGER]
+    @Decision Result hasContent(Question q) {                           // [DECISION]
+        return new Result(q.text() != null && !q.text().isBlank(), q);
+    }
+    @Action   void generate(Question q) {                              // [ACTION]
+        answers.put(q.text(), model.query("Answer concisely: {}", q.text()));
+    }
+    @Outcome  void complete(Question q) { }                            // [OUTCOME]
+}`,true)}
+<p class="small muted">Acompanhe o <code>server.log</code>: [TRIGGER] → [DECISION] → [ACTION] → [OUTCOME].</p>`);
+
+/* 9b — A conversa é por workflow */
+S('A conversa é por workflow', `
+<p class="kicker">Sample 1 · uma sutileza que vale mostrar</p>
+<h2>Cada requisição é uma conversa <em>nova</em></h2>
+<div class="cols grow">
+<div class="col">${txt(`POST /ask  "Filósofos gregos?"          → workflow #1
+   novo contexto @WorkflowScoped
+   nova conversa com o LLM → responde
+   @Outcome destrói o contexto     ✗ memória some
+
+POST /ask  "Onde eles nasceram?"       → workflow #2
+   conversa zerada
+   "…a quem você se refere?"       ← sem memória`,true)}</div>
+<div class="col"><ul style="font-size:18px">
+  <li>O estado conversacional está <strong>atado ao workflow</strong> — morre quando o <code>@Outcome</code> destrói o contexto</li>
+  <li>Duas requisições HTTP = <strong>dois workflows</strong> → sem memória compartilhada (e isolamento total entre usuários concorrentes)</li>
+  <li>A memória <strong>persiste sim</strong> <em>dentro</em> de um workflow — entre suas fases</li>
+</ul>
+<div class="card" style="margin-top:12px"><p class="small">Exatamente no que o <strong>Course Content Studio</strong> se apoia: a conclusão “lembra” da intro e do quiz — mesmo workflow, mesma conversa.</p></div>
+</div></div>`);
+
+/* 10 — Tutorial Generator */
+S('Tutorial Generator', `
+<p class="kicker">Sample 2 · examples/tutorial-generator</p>
+<h2>Escrever um guia de formulário — e depois <em>refinar por chat</em></h2>
+<div class="cols grow">
+<div class="col">${txt(`GET  /tutorial-generator/                     UI: form + guia + chat
+POST /tutorial-generator/api/tutorial/generate      um guia novo
+POST /tutorial-generator/api/tutorial/refine        o guia inteiro
+POST /tutorial-generator/api/tutorial/refine-field  apenas UM campo`,true)}</div>
+<div class="col"><ul style="font-size:17px">
+  <li><strong>Fonte única de verdade</strong> — a spec do formulário renderiza o form vivo E alimenta o agente</li>
+  <li><strong>O evento carrega o modo</strong> — currentHtml nulo ⇒ gerar; preenchido ⇒ refinar</li>
+  <li><strong>Edite o artefato, não a memória</strong> — o guia atual viaja no prompt</li>
+  <li>Provedor: Claude no <strong>Vertex</strong> (<code>claude-sonnet-4-6</code>), pela qualidade da saída</li>
+</ul></div></div>`);
+
+/* 11 — Design do TG */
+S('Tutorial Generator — design', `
+<p class="kicker">Sample 2 · padrões para roubar</p>
+<h2>Um agente, dois comportamentos — e saída defensiva</h2>
+<div class="cols grow">
+<div class="col">${java(`@Action
+void render(TutorialRequest r) {
+  String content = (r.currentHtml() == null)
+    ? model.query("Generate the field-guide JSON: {}",
+                  r.formSpec())
+    : model.query("Current guide + change: {} / {}",
+                  r.currentHtml(), r.instruction());
+  store.put(stripCodeFences(content));  // modelos põem cercas
+}`,true)}</div>
+<div class="col"><ul style="font-size:17px">
+  <li>O refinamento usa <strong>dois placeholders <code>{}</code></strong> — guia atual + instrução</li>
+  <li><code>stripCodeFences</code> remove cercas de código perdidas — saída de LLM exige pós-processamento defensivo</li>
+  <li><code>refine-field</code> refina um campo (JSON-P) e <strong>mescla de volta</strong> — limita o raio de dano</li>
+</ul></div></div>`);
+
+/* 12 — Course Content Studio (divisor ao vivo) */
+S('Course Content Studio', `
+<div class="center">
+  <div class="secnum">AO VIVO</div>
+  <h2>Course Content Studio — <em>dois agentes, uma aprovação</em></h2>
+  <p class="muted" style="font-size:22px;margin-top:16px">Um professor gera intro, quiz &amp; conclusão de um capítulo, refina, aprova — e um segundo agente publica a aula do aluno</p>
+  <div style="margin-top:30px">
+    <span class="chip">gerar → refinar por seção → aprovar &amp; publicar</span>
+    <span class="chip">agente → evento CDI → agente</span>
+    <span class="chip">questões abertas corrigidas pelo LLM</span>
+  </div>
+</div>`, 's-div');
+
+/* 13 — Dois agentes por eventos */
+S('Dois agentes por eventos', `
+<p class="kicker">Course Content Studio · arquitetura</p>
+<h2>Dois agentes, compostos por <em>eventos CDI</em></h2>
+<div class="cols grow">
+<div class="col">${txt(`CourseContentAgent   (@WorkflowScoped)
+  @Trigger   onRequest          gerar | refinar
+  @Decision  hasTeachableContent   (order 1)
+  @Action    writeIntro / writeQuiz / writeConclusion  (order 2/3/4)
+  @Outcome   publish → PacketStore
+
+        │  o professor aprova
+        ▼  event.fire(LessonApproved)   ← o portão
+
+PublishAgent
+  @Trigger   onApproved
+  @Action    writeObjectives   (seu próprio turno de LLM)
+  @Outcome   publish → PublishedLessonStore`,true)}</div>
+<div class="col"><ul style="font-size:17px">
+  <li><strong>Sem orquestrador</strong> — a aprovação é o evento entre os dois agentes</li>
+  <li>Fases ordenadas · memória conversacional do workflow · parse defensivo do quiz</li>
+  <li>Popup de progresso <strong>SSE</strong> ao vivo enquanto o workflow roda</li>
+</ul></div></div>`);
+
+/* 14 — Correção do quiz + config */
+S('Correção do quiz + config', `
+<p class="kicker">Course Content Studio · detalhes</p>
+<h2>Questões abertas, corrigidas pelo <em>LLM</em></h2>
+<div class="cols grow">
+<div class="col">${java(`@POST @Path("quiz/grade")
+public Response grade(GradeRequest body) {
+  int score = similarity(model,          // 0..100
+      q.prompt(), q.sampleAnswer(),
+      body.studentAnswer());
+  String verdict = score >= 70 ? "correct"
+      : score >= 50 ? "partial" : "incorrect";
+  return Response.ok(...).build();
+}`,true)}
+<p class="small muted"><code>LargeLanguageModel</code> injetado num resource <code>@RequestScoped</code> — sem agente, porque a fachada é <code>@Dependent</code>.</p></div>
+<div class="col"><ul style="font-size:17px">
+  <li>Limiares aplicados no <strong>servidor</strong>, não no modelo</li>
+  <li>O MathJax é <strong>auto-hospedado</strong> no WAR — fórmulas renderizam offline</li>
+</ul>
+${props(`payara.agentic.llm.provider=vertex
+payara.agentic.llm.model=claude-sonnet-4-6
+payara.agentic.llm.max-tokens=8192`)}
+<p class="xsmall muted">Modelo em nuvem no palco — o Ollama local estoura o timeout de 120 s.</p></div></div>`);
+
+/* 15 — Roteiro da demo ao vivo */
+S('Demo ao vivo — rodar', `
+<p class="kicker">Course Content Studio · ao vivo</p>
+<h2>Vamos rodar</h2>
+<div class="grow"><ol style="font-size:20px">
+  <li><strong>Gerar</strong> — Física, “Segunda Lei de Newton” → acompanhe o popup SSE: trigger → intro → quiz → conclusão → outcome (fórmulas em LaTeX)</li>
+  <li><strong>Refinar → Quiz</strong> — “deixe mais difícil + acrescente uma questão aberta ao final” → só o quiz muda, tipado como <code>open</code></li>
+  <li><strong>Aprovar &amp; publicar</strong> — um segundo evento CDI dispara o PublishAgent (acompanhe suas fases)</li>
+  <li><strong>Ver a aula publicada</strong> — responda a questão aberta → corrigida pelo LLM (≥ 70 / 50–69 / &lt; 50)</li>
+</ol>
+<p class="small muted" style="margin-top:16px">Plano B: se o token da nuvem expirou, narre o pacote pré-gerado ou um screenshot — não depure ao vivo.</p></div>`);
+
+/* 16 — O fio condutor */
+S('O fio condutor', `
+<p class="kicker">O que acabou de acontecer</p>
+<h2>Mesmo estilo de agente — provedor por <em>config</em></h2>
+<table>
+  <tr><th>Sample</th><th>Código do agente</th><th>Provedor (só propriedades)</th></tr>
+  <tr><td>Quickstart</td><td>@Agent + 4 fases</td><td>ollama / gemma3:4b</td></tr>
+  <tr><td>Tutorial Generator</td><td>@Agent + gerar/refinar</td><td>vertex / claude sonnet</td></tr>
+  <tr><td>Course Content Studio</td><td>dois @Agents + eventos</td><td>vertex / claude sonnet</td></tr>
+</table>
+<p class="small muted" style="margin-top:22px">Nenhum agente nomeou um provedor. Ollama → Claude → Vertex é um arquivo de propriedades. Essa é a tese inteira — provada ao vivo.</p>`);
+
+/* 17 — Mensagens-chave */
+S('Mensagens-chave', `
+<p class="kicker">Se você levar três coisas</p>
+<h2>Mensagens-chave</h2>
+<div class="grow" style="display:flex;flex-direction:column;gap:18px;justify-content:center">
+  <div class="card" style="display:flex;gap:20px;align-items:center"><div style="font-family:var(--mono);font-size:34px;color:var(--orange);font-weight:600">1</div>
+    <p style="font-size:20px;margin:0"><strong>Agentes são beans CDI</strong> com um workflow de fases — injeção, eventos, escopos e validação de graça.</p></div>
+  <div class="card" style="display:flex;gap:20px;align-items:center"><div style="font-family:var(--mono);font-size:34px;color:var(--orange);font-weight:600">2</div>
+    <p style="font-size:20px;margin:0"><strong>Vendor-neutralidade real</strong> — os samples trocam Ollama ↔ Claude ↔ Vertex com um arquivo de propriedades.</p></div>
+  <div class="card" style="display:flex;gap:20px;align-items:center"><div style="font-family:var(--mono);font-size:34px;color:var(--orange);font-weight:600">3</div>
+    <p style="font-size:20px;margin:0"><strong>Componível</strong> — dois agentes colaboram por eventos para montar e corrigir uma aula. Tudo Jakarta EE padrão.</p></div>
+</div>`);
+
+/* 18 — Obrigado */
+S('Obrigado', `
+<div class="center">
+  <div class="bigfish" style="margin-bottom:30px">${fish}</div>
+  <h2 style="font-size:54px">Obrigado! <em>Perguntas?</em></h2>
+  <p class="muted" style="font-size:21px;margin-top:22px">Jakarta Agentic AI — samples: quickstart · tutorial generator · course content studio</p>
+  <p class="meta" style="margin-top:36px;font-family:var(--mono);font-size:16px;color:var(--faint)"><b style="color:var(--ink)">Luís Neto</b> · Payara DEMO · Julho de 2026</p>
+</div>`, 's-title');
+
+/* ═══════════════════ SLIDES — ESPAÑOL ═══════════════════ */
+__L = 'es';
+
+/* 1 — Título */
+S('Título', `
+<div class="center s-title-inner">
+  <div class="bigfish">${fish}</div>
+  <h1>Jakarta <em>Agentic AI</em></h1>
+  <p class="sub">Los samples, en acción — el mismo código de agente, tres apps reales,
+  y el proveedor cambiado con un solo archivo de configuración.</p>
+  <p class="meta"><b>Luís Neto</b> · Payara DEMO · Julio de 2026</p>
+</div>`, 's-title');
+
+/* 2 — Qué es */
+S('Qué es', `
+<p class="kicker">Motivación</p>
+<h2>Un agente es solo un <em>bean CDI</em></h2>
+<div class="grow"><ul>
+  <li><strong>Percibe</strong> un evento, <strong>razona</strong> con un LLM, <strong>decide</strong> si continuar y <strong>actúa</strong> — dentro de un workflow de fases.</li>
+  <li>Programas contra anotaciones y una interfaz, <code>LargeLanguageModel</code>.</li>
+  <li>El <strong>servidor</strong> aporta el motor de orquestación y la integración con el proveedor.</li>
+</ul>
+<p class="muted" style="margin-top:26px">La analogía con Jakarta Persistence: programa contra <code>EntityManager</code>, deja que Hibernate lo implemente. Aquí: programa contra <code>@Agent</code>, deja que Payara lo ejecute.</p>
+</div>`);
+
+/* 3 — El problema */
+S('El problema', `
+<p class="kicker">Motivación</p>
+<h2>Tres problemas que ataca la spec</h2>
+<div class="cols grow"><div class="col">
+  <div class="card"><h3>Vendor lock-in</h3><p class="small">Cambiar de proveedor de LLM obliga a reescribir el código del agente. Aquí es configuración del servidor.</p></div>
+  <div class="card"><h3>Sin integración con el contenedor</h3><p class="small">DI, ámbitos, eventos, validación — reinventados en cada framework. La spec se apoya en CDI.</p></div>
+</div><div class="col">
+  <div class="card"><h3>Workflows ad-hoc</h3><p class="small">Cada app inventa su máquina de estados. La spec define Trigger → Decision* → Action* → Outcome.</p></div>
+  <div class="card"><h3>La prueba</h3><p class="small">Tres samples hoy, escritos igual — solo cambia el archivo de propiedades.</p></div>
+</div></div>`);
+
+/* 4 — Un archivo de config */
+S('Un archivo de config', `
+<p class="kicker">Motivación · la recompensa</p>
+<h2>Cambiar Ollama (local) → Claude: <em>editar un archivo</em></h2>
+<div class="cols grow">
+  <div class="col"><p class="panel-label">Código del agente — ningún proveedor por ninguna parte</p>
+  ${java(`@Agent
+public class QuestionAgent {
+  @Inject
+  LargeLanguageModel model;   // jakarta.ai.agent
+
+  @Action
+  void generate(Question q, AnswerStore out) {
+    out.put(q.text(),
+      model.query("Answer concisely: {}", q.text()));
+  }
+}`,true)}</div>
+  <div class="col"><p class="panel-label">microprofile-config.properties — la migración entera</p>
+  ${props(`# ANTES
+payara.agentic.llm.provider=ollama
+payara.agentic.llm.model=gemma3:4b
+
+# DESPUÉS
+payara.agentic.llm.provider=anthropic
+payara.agentic.llm.model=claude-opus-4-8`)}
+  <p class="small muted">Cero código · cero pom · como mucho un redespliegue</p></div>
+</div>`);
+
+/* 5 — El modelo de fases */
+S('El modelo de fases', `
+<p class="kicker">Motivación · el modelo mental</p>
+<h2>Un workflow de <em>fases</em></h2>
+<div class="grow">
+<div class="flow">
+  <div class="fbox f-trigger">@Trigger<small>obligatorio · 1<br>evento CDI</small></div><div class="farrow">→</div>
+  <div class="fbox f-mid">@Decision<small>0..N · puede parar</small></div><div class="farrow">→</div>
+  <div class="fbox f-mid">@Action<small>0..N · el trabajo</small></div><div class="farrow">→</div>
+  <div class="fbox f-out">@Outcome<small>0..1 · lo cierra</small></div>
+</div>
+<div class="fexc">@HandleException — captura excepciones de CUALQUIER fase</div>
+<ul style="margin-top:28px">
+  <li>Dispara un evento CDI → el workflow entero corre <strong>de forma síncrona</strong> en ese hilo</li>
+  <li>Los datos fluyen entre fases <strong>por tipo</strong> — sin pasar parámetros a mano</li>
+  <li>Una decisión que devuelve false/null <strong>detiene</strong> el workflow limpiamente</li>
+</ul></div>`);
+
+/* 6 — Spec × implementación */
+S('Spec × implementación', `
+<p class="kicker">Motivación</p>
+<h2>CDI puro dispara el trigger — <em>Payara ejecuta el resto</em></h2>
+<div class="cols grow"><div class="col"><ul style="font-size:19px">
+  <li>El <code>@Trigger</code> es solo un observador de eventos CDI — CDI puro podría invocarlo</li>
+  <li>Pero <code>@Decision</code>/<code>@Action</code>/<code>@Outcome</code>, datos-por-tipo, terminación y despacho de excepciones necesitan un <strong>motor</strong></li>
+  <li>El <code>agentic-ai-core</code> de Payara lo aporta — una <strong>extensión CDI portable</strong>, sin SPI propietaria</li>
+</ul></div>
+<div class="col"><div class="card"><h3>Qué significa eso hoy</h3><p>Todo lo que verás ejecutarse — tres samples — es Jakarta EE estándar: beans CDI, eventos CDI, MicroProfile Config. El código del agente no lleva clase base de framework ni nombra proveedor alguno.</p></div></div></div>`);
+
+/* 7 — Tres samples */
+S('Tres samples', `
+<p class="kicker">Los samples</p>
+<h2>Tres samples, de ambición creciente</h2>
+<table>
+  <tr><th>Sample</th><th>Qué muestra</th><th>Proveedor — solo config</th></tr>
+  <tr><td><code>quickstart</code></td><td>Las cuatro fases, lo mínimo</td><td>Ollama · gemma3:4b</td></tr>
+  <tr><td><code>tutorial-generator</code></td><td>Generar + refinar por chat</td><td>Vertex · Claude</td></tr>
+  <tr><td><code>course-content-studio</code></td><td>Dos agentes por eventos + corrección por LLM</td><td>Vertex · Claude</td></tr>
+</table>
+<p class="small muted" style="margin-top:22px">El mismo modelo de programación en los tres. La única diferencia real entre ellos es el <code>microprofile-config.properties</code>.</p>`);
+
+/* 8 — Quickstart */
+S('Quickstart', `
+<p class="kicker">Sample 1 · examples/quickstart</p>
+<h2>El agente más pequeño que ejercita las cuatro fases</h2>
+<div class="cols grow">
+<div class="col">${txt(`POST /quickstart/api/ask
+  { "question": "..." }
+        │  Event.fire(Question)   ← síncrono
+        ▼
+  QuestionAgent (@WorkflowScoped por defecto)
+  [TRIGGER] → [DECISION] → [ACTION] → [OUTCOME]
+        │
+  AnswerStore  →  { "question", "answer" }`,true)}</div>
+<div class="col"><ul style="font-size:18px">
+  <li><code>Event.fire</code> es <strong>síncrono</strong> — la respuesta del LLM viaja en el mismo response HTTP</li>
+  <li>Pregunta vacía → la <code>@Decision</code> devuelve <code>Result(false, …)</code> → terminación anticipada</li>
+  <li>Proveedor: <strong>Ollama</strong> local, gratis, offline — una primera ejecución en vivo segura</li>
+</ul></div></div>`);
+
+/* 9 — Código del quickstart */
+S('Quickstart — el agente', `
+<p class="kicker">Sample 1 · el código</p>
+<h2>Cuatro fases, cada una registrando su prefijo</h2>
+${java(`@Agent(name = "QuestionAgent")
+public class QuestionAgent {
+    @Inject LargeLanguageModel model;
+    @Inject AnswerStore answers;
+
+    @Trigger  void onQuestion(@Valid Question q) { }                    // [TRIGGER]
+    @Decision Result hasContent(Question q) {                           // [DECISION]
+        return new Result(q.text() != null && !q.text().isBlank(), q);
+    }
+    @Action   void generate(Question q) {                              // [ACTION]
+        answers.put(q.text(), model.query("Answer concisely: {}", q.text()));
+    }
+    @Outcome  void complete(Question q) { }                            // [OUTCOME]
+}`,true)}
+<p class="small muted">Observa el <code>server.log</code>: [TRIGGER] → [DECISION] → [ACTION] → [OUTCOME].</p>`);
+
+/* 9b — La conversación es por workflow */
+S('La conversación es por workflow', `
+<p class="kicker">Sample 1 · una sutileza que vale enseñar</p>
+<h2>Cada petición es una conversación <em>nueva</em></h2>
+<div class="cols grow">
+<div class="col">${txt(`POST /ask  "¿Filósofos griegos?"        → workflow #1
+   nuevo contexto @WorkflowScoped
+   nueva conversación con el LLM → responde
+   @Outcome destruye el contexto   ✗ memoria perdida
+
+POST /ask  "¿Dónde nacieron?"          → workflow #2
+   conversación desde cero
+   "…¿a quiénes te refieres?"      ← sin memoria`,true)}</div>
+<div class="col"><ul style="font-size:18px">
+  <li>El estado conversacional está <strong>atado al workflow</strong> — muere cuando el <code>@Outcome</code> destruye el contexto</li>
+  <li>Dos peticiones HTTP = <strong>dos workflows</strong> → sin memoria compartida (y aislamiento total entre usuarios concurrentes)</li>
+  <li>La memoria <strong>sí</strong> persiste <em>dentro</em> de un workflow — entre sus fases</li>
+</ul>
+<div class="card" style="margin-top:12px"><p class="small">Exactamente en lo que se apoya el <strong>Course Content Studio</strong>: la conclusión «recuerda» la intro y el cuestionario — mismo workflow, misma conversación.</p></div>
+</div></div>`);
+
+/* 10 — Tutorial Generator */
+S('Tutorial Generator', `
+<p class="kicker">Sample 2 · examples/tutorial-generator</p>
+<h2>Escribir una guía de formulario — y luego <em>refinarla por chat</em></h2>
+<div class="cols grow">
+<div class="col">${txt(`GET  /tutorial-generator/                     UI: form + guía + chat
+POST /tutorial-generator/api/tutorial/generate      una guía nueva
+POST /tutorial-generator/api/tutorial/refine        la guía entera
+POST /tutorial-generator/api/tutorial/refine-field  solo UN campo`,true)}</div>
+<div class="col"><ul style="font-size:17px">
+  <li><strong>Fuente única de verdad</strong> — la spec del formulario renderiza el form vivo Y alimenta al agente</li>
+  <li><strong>El evento lleva el modo</strong> — currentHtml nulo ⇒ generar; relleno ⇒ refinar</li>
+  <li><strong>Edita el artefacto, no la memoria</strong> — la guía actual viaja en el prompt</li>
+  <li>Proveedor: Claude en <strong>Vertex</strong> (<code>claude-sonnet-4-6</code>), por la calidad de la salida</li>
+</ul></div></div>`);
+
+/* 11 — Diseño del TG */
+S('Tutorial Generator — diseño', `
+<p class="kicker">Sample 2 · patrones para robar</p>
+<h2>Un agente, dos comportamientos — y salida defensiva</h2>
+<div class="cols grow">
+<div class="col">${java(`@Action
+void render(TutorialRequest r) {
+  String content = (r.currentHtml() == null)
+    ? model.query("Generate the field-guide JSON: {}",
+                  r.formSpec())
+    : model.query("Current guide + change: {} / {}",
+                  r.currentHtml(), r.instruction());
+  store.put(stripCodeFences(content));  // los modelos ponen vallas
+}`,true)}</div>
+<div class="col"><ul style="font-size:17px">
+  <li>El refinamiento usa <strong>dos placeholders <code>{}</code></strong> — guía actual + instrucción</li>
+  <li><code>stripCodeFences</code> quita las vallas de código sueltas — la salida del LLM necesita posprocesado defensivo</li>
+  <li><code>refine-field</code> refina un campo (JSON-P) y lo <strong>mezcla de vuelta</strong> — limita el radio de daño</li>
+</ul></div></div>`);
+
+/* 12 — Course Content Studio (divisor en vivo) */
+S('Course Content Studio', `
+<div class="center">
+  <div class="secnum">EN VIVO</div>
+  <h2>Course Content Studio — <em>dos agentes, una aprobación</em></h2>
+  <p class="muted" style="font-size:22px;margin-top:16px">Un profesor genera la intro, el cuestionario y la conclusión de un capítulo, los refina, aprueba — y un segundo agente publica la lección del alumno</p>
+  <div style="margin-top:30px">
+    <span class="chip">generar → refinar por sección → aprobar y publicar</span>
+    <span class="chip">agente → evento CDI → agente</span>
+    <span class="chip">preguntas abiertas corregidas por el LLM</span>
+  </div>
+</div>`, 's-div');
+
+/* 13 — Dos agentes por eventos */
+S('Dos agentes por eventos', `
+<p class="kicker">Course Content Studio · arquitectura</p>
+<h2>Dos agentes, compuestos por <em>eventos CDI</em></h2>
+<div class="cols grow">
+<div class="col">${txt(`CourseContentAgent   (@WorkflowScoped)
+  @Trigger   onRequest          generar | refinar
+  @Decision  hasTeachableContent   (order 1)
+  @Action    writeIntro / writeQuiz / writeConclusion  (order 2/3/4)
+  @Outcome   publish → PacketStore
+
+        │  el profesor aprueba
+        ▼  event.fire(LessonApproved)   ← la compuerta
+
+PublishAgent
+  @Trigger   onApproved
+  @Action    writeObjectives   (su propio turno de LLM)
+  @Outcome   publish → PublishedLessonStore`,true)}</div>
+<div class="col"><ul style="font-size:17px">
+  <li><strong>Sin orquestador</strong> — la aprobación es el evento entre los dos agentes</li>
+  <li>Fases ordenadas · memoria conversacional del workflow · parseo defensivo del cuestionario</li>
+  <li>Popup de progreso <strong>SSE</strong> en vivo mientras corre el workflow</li>
+</ul></div></div>`);
+
+/* 14 — Corrección del test + config */
+S('Corrección del test + config', `
+<p class="kicker">Course Content Studio · detalles</p>
+<h2>Preguntas abiertas, corregidas por el <em>LLM</em></h2>
+<div class="cols grow">
+<div class="col">${java(`@POST @Path("quiz/grade")
+public Response grade(GradeRequest body) {
+  int score = similarity(model,          // 0..100
+      q.prompt(), q.sampleAnswer(),
+      body.studentAnswer());
+  String verdict = score >= 70 ? "correct"
+      : score >= 50 ? "partial" : "incorrect";
+  return Response.ok(...).build();
+}`,true)}
+<p class="small muted"><code>LargeLanguageModel</code> inyectado en un recurso <code>@RequestScoped</code> — sin agente, porque la fachada es <code>@Dependent</code>.</p></div>
+<div class="col"><ul style="font-size:17px">
+  <li>Umbrales aplicados en el <strong>servidor</strong>, no en el modelo</li>
+  <li>MathJax está <strong>autoalojado</strong> en el WAR — las fórmulas se renderizan offline</li>
+</ul>
+${props(`payara.agentic.llm.provider=vertex
+payara.agentic.llm.model=claude-sonnet-4-6
+payara.agentic.llm.max-tokens=8192`)}
+<p class="xsmall muted">Un modelo en la nube sobre el escenario — Ollama local agota los 120 s.</p></div></div>`);
+
+/* 15 — Guion de la demo en vivo */
+S('Demo en vivo — ejecutar', `
+<p class="kicker">Course Content Studio · en vivo</p>
+<h2>Vamos a ejecutarlo</h2>
+<div class="grow"><ol style="font-size:20px">
+  <li><strong>Generar</strong> — Física, «Segunda ley de Newton» → mira el popup SSE: trigger → intro → cuestionario → conclusión → outcome (fórmulas en LaTeX)</li>
+  <li><strong>Refinar → Cuestionario</strong> — «hazlo más difícil + añade una pregunta abierta final» → solo cambia el cuestionario, tipada como <code>open</code></li>
+  <li><strong>Aprobar y publicar</strong> — un segundo evento CDI dispara el PublishAgent (mira sus fases)</li>
+  <li><strong>Ver la lección publicada</strong> — responde la pregunta abierta → la corrige el LLM (≥ 70 / 50–69 / &lt; 50)</li>
+</ol>
+<p class="small muted" style="margin-top:16px">Alternativa: si el token de la nube caducó, narra el paquete pregenerado o una captura — no depures en vivo.</p></div>`);
+
+/* 16 — El hilo conductor */
+S('El hilo conductor', `
+<p class="kicker">Qué acaba de pasar</p>
+<h2>El mismo estilo de agente — proveedor por <em>config</em></h2>
+<table>
+  <tr><th>Sample</th><th>Código del agente</th><th>Proveedor (solo propiedades)</th></tr>
+  <tr><td>Quickstart</td><td>@Agent + 4 fases</td><td>ollama / gemma3:4b</td></tr>
+  <tr><td>Tutorial Generator</td><td>@Agent + generar/refinar</td><td>vertex / claude sonnet</td></tr>
+  <tr><td>Course Content Studio</td><td>dos @Agents + eventos</td><td>vertex / claude sonnet</td></tr>
+</table>
+<p class="small muted" style="margin-top:22px">Ningún agente nombró un proveedor. Ollama → Claude → Vertex es un archivo de propiedades. Esa es toda la tesis — demostrada en vivo.</p>`);
+
+/* 17 — Mensajes clave */
+S('Mensajes clave', `
+<p class="kicker">Si te llevas tres cosas</p>
+<h2>Mensajes clave</h2>
+<div class="grow" style="display:flex;flex-direction:column;gap:18px;justify-content:center">
+  <div class="card" style="display:flex;gap:20px;align-items:center"><div style="font-family:var(--mono);font-size:34px;color:var(--orange);font-weight:600">1</div>
+    <p style="font-size:20px;margin:0"><strong>Los agentes son beans CDI</strong> con un workflow de fases — inyección, eventos, ámbitos y validación gratis.</p></div>
+  <div class="card" style="display:flex;gap:20px;align-items:center"><div style="font-family:var(--mono);font-size:34px;color:var(--orange);font-weight:600">2</div>
+    <p style="font-size:20px;margin:0"><strong>Neutralidad de proveedor real</strong> — los samples cambian Ollama ↔ Claude ↔ Vertex con un archivo de propiedades.</p></div>
+  <div class="card" style="display:flex;gap:20px;align-items:center"><div style="font-family:var(--mono);font-size:34px;color:var(--orange);font-weight:600">3</div>
+    <p style="font-size:20px;margin:0"><strong>Componible</strong> — dos agentes colaboran mediante eventos para construir y corregir una lección. Todo Jakarta EE estándar.</p></div>
+</div>`);
+
+/* 18 — Gracias */
+S('Gracias', `
+<div class="center">
+  <div class="bigfish" style="margin-bottom:30px">${fish}</div>
+  <h2 style="font-size:54px">¡Gracias! <em>¿Preguntas?</em></h2>
+  <p class="muted" style="font-size:21px;margin-top:22px">Jakarta Agentic AI — samples: quickstart · tutorial generator · course content studio</p>
+  <p class="meta" style="margin-top:36px;font-family:var(--mono);font-size:16px;color:var(--faint)"><b style="color:var(--ink)">Luís Neto</b> · Payara DEMO · Julio de 2026</p>
+</div>`, 's-title');
+
+__L = 'en';
+
 /* ═══════════════════ SPEAKER NOTES (English) ═══════════════════ */
 /* One entry per slide, in slide order. Shown in the Presenter window (press P). */
-const NOTES = [
+const NOTES_ALL = { en: [], pt: [], es: [] };
+NOTES_ALL.en = [
   `Open: "This session is hands-on — the same agent code, three real apps, and the provider switched by a single config file. Let's see it run." Breathe, smile, go.`,
   `An agent is a CDI bean that perceives an event, reasons with an LLM, decides whether to proceed, and acts — inside a phase workflow. You code against annotations and one interface; the server provides the engine and the provider. The JPA analogy lands well.`,
   `Three problems: vendor lock-in, no container integration, ad-hoc workflows. The spec answers each with CDI and a standard phase model. Today's three samples are the proof — hold that promise.`,
@@ -468,7 +1101,7 @@ const NOTES = [
   `The smallest agent. A POST fires a Question event; the workflow runs synchronously, so the LLM answer comes back in the same response. An empty question hits the decision gate and terminates early. Runs on free local Ollama — a safe first live run if you want one.`,
   `The whole agent on one slide — four phases, each logging its prefix. If I run it, we watch the log go TRIGGER, DECISION, ACTION, OUTCOME. Note again: no vendor, no base class, just annotated methods on a bean.`,
   `A great contrast to show live: ask the quickstart two related questions — the second has no memory of the first. That's not a bug: conversational state is per workflow. Each POST fires a new event, a new WorkflowScoped context, a fresh LLM conversation, destroyed at the outcome. Two requests are two workflows. But memory DOES persist within a workflow, across its phases — exactly what Course Content Studio's conclusion relies on. Use this to set up that later payoff.`,
-  `Sample two, a real use case: an agent writes a field-by-field guide for a web form, then refines it by chat. Two ideas to flag: a single source of truth for the form, and the event carrying generate-versus-refine. It runs on Claude for HTML quality.`,
+  `Sample two, a real use case: an agent writes a field-by-field guide for a web form, then refines it by chat. Two ideas to flag: a single source of truth for the form, and the event carrying generate-versus-refine. It runs on Claude via Vertex for output quality.`,
   `The patterns worth stealing: the refinement prompt sends the current artifact back — edit the artifact, not the memory — with two placeholders. stripCodeFences cleans stray fences. And refine-field merges one field back, limiting damage. Honest note: LLM output needs defensive handling.`,
   `The main event — Course Content Studio. Two agents, chained by a CDI event, with a human approval gate. I'll switch to the live app now and come back to this architecture slide after.`,
   `After the live run, land the architecture here. CourseContentAgent authors the packet; approving fires LessonApproved, which triggers PublishAgent. No orchestrator — the approval is the event between them. Ordered phases, workflow memory, defensive quiz parsing, live SSE progress.`,
@@ -478,6 +1111,62 @@ const NOTES = [
   `Three things to remember: agents are CDI beans with a phase workflow; real vendor neutrality via config; and agents compose through events. All standard Jakarta EE — no proprietary framework.`,
   `Thank you — invite questions, and have the sample repo links ready. Breathe, and enjoy the Q&A.`,
 ];
+
+/* ═══════════════════ NOTAS DO APRESENTADOR (Português) ═══════════════════ */
+NOTES_ALL.pt = [
+  `Abertura: "Esta sessão é mão na massa — o mesmo código de agente, três apps reais e o provedor trocado por um único arquivo de configuração. Vamos ver rodar." Respire, sorria, comece.`,
+  `Um agente é um bean CDI que percebe um evento, raciocina com um LLM, decide se prossegue e age — dentro de um workflow de fases. Você programa contra anotações e uma interface; o servidor fornece o engine e o provedor. A analogia com JPA cola bem.`,
+  `Três problemas: vendor lock-in, sem integração com o container, workflows ad-hoc. A spec responde a cada um com CDI e um modelo de fases padrão. Os três samples de hoje são a prova — segure essa promessa.`,
+  `A recompensa, concreta. O agente não nomeia vendor nenhum. Trocar Ollama por Claude é este arquivo de propriedades — sem código, sem pom, sem rebuild, porque o backend mora no servidor. Diga devagar; esta é a tese da palestra inteira.`,
+  `Modelo mental rápido para os samples ficarem legíveis: um Trigger obrigatório vindo de um evento CDI, Decisions e Actions que se intercalam, um Outcome opcional e HandleException cortando tudo. Dispare o evento e tudo roda sincronamente; os dados fluem por tipo.`,
+  `Um esclarecimento que sempre perguntam: CDI puro consegue disparar o trigger, mas o resto precisa de um engine — o agentic-ai-core da Payara, uma extensão CDI portável. Tudo que você vai ver é Jakarta EE padrão; o agente não tem classe base de framework nem nome de provedor.`,
+  `Aqui está o mapa da demo: o quickstart mostra as quatro fases; o tutorial generator acrescenta gerar-e-refinar; o course content studio acrescenta dois agentes encadeados por eventos e correção por LLM. Mesmo modelo em todos — aponte a coluna do provedor: só a config muda.`,
+  `O menor agente. Um POST dispara um evento Question; o workflow roda sincronamente, então a resposta do LLM volta no mesmo response. Uma pergunta vazia bate no portão da decision e termina antecipadamente. Roda no Ollama local gratuito — uma primeira execução ao vivo segura, se quiser.`,
+  `O agente inteiro num slide — quatro fases, cada uma logando seu prefixo. Se eu rodar, acompanhamos o log em TRIGGER, DECISION, ACTION, OUTCOME. Repare de novo: sem vendor, sem classe base, só métodos anotados num bean.`,
+  `Um contraste ótimo para mostrar ao vivo: faça duas perguntas relacionadas ao quickstart — a segunda não tem memória da primeira. Isso não é bug: o estado conversacional é por workflow. Cada POST dispara um novo evento, um novo contexto WorkflowScoped, uma conversa nova com o LLM, destruída no outcome. Duas requisições são dois workflows. Mas a memória PERSISTE dentro de um workflow, entre suas fases — exatamente no que a conclusão do Course Content Studio se apoia. Use isso para preparar aquele momento.`,
+  `Sample dois, caso de uso real: um agente escreve um guia campo a campo de um formulário web e depois o refina por chat. Duas ideias para sinalizar: fonte única de verdade para o formulário e o evento carregando gerar-versus-refinar. Roda no Claude via Vertex, pela qualidade da saída.`,
+  `Os padrões que valem roubar: o prompt de refinamento reenvia o artefato atual — edite o artefato, não a memória — com dois placeholders. O stripCodeFences limpa cercas perdidas. E o refine-field mescla um campo de volta, limitando o dano. Nota honesta: saída de LLM exige tratamento defensivo.`,
+  `O prato principal — Course Content Studio. Dois agentes encadeados por um evento CDI, com um portão de aprovação humana. Vou trocar para a aplicação ao vivo agora e voltar a este slide de arquitetura depois.`,
+  `Depois da execução ao vivo, aterrisse a arquitetura aqui. O CourseContentAgent escreve o pacote; aprovar dispara LessonApproved, que aciona o PublishAgent. Sem orquestrador — a aprovação é o evento entre eles. Fases ordenadas, memória do workflow, parse defensivo do quiz, progresso SSE ao vivo.`,
+  `Dois detalhes de fechamento da demo. Questões abertas são corrigidas pelo LLM — um score de similaridade, com limiares aplicados no servidor — e essa chamada injeta o LargeLanguageModel direto num resource REST, sem agente, porque a fachada é @Dependent. A config é Vertex/Claude sonnet, em nuvem, porque local estouraria o timeout.`,
+  `Deixas do roteiro: gere Física e acompanhe o popup SSE junto com as fórmulas em LaTeX; refine só o quiz e acrescente uma questão aberta; aprove e publique para disparar o segundo agente; abra a visão do aluno e corrija a resposta aberta. Se o token expirou, narre o pacote pré-gerado — não depure ao vivo.`,
+  `Dê um passo atrás: três samples, mesmo estilo de agente, provedor por config. Nenhum agente nomeou um provedor. Ollama para Claude para Vertex é um arquivo de propriedades — essa é a tese inteira, e você acabou de vê-la rodando.`,
+  `Três coisas para lembrar: agentes são beans CDI com um workflow de fases; vendor-neutralidade real via config; e agentes se compõem por eventos. Tudo Jakarta EE padrão — sem framework proprietário.`,
+  `Obrigado — convide as perguntas e deixe os links dos repositórios de samples à mão. Respire e aproveite o Q&A.`,
+];
+
+/* ═══════════════════ NOTAS DEL PRESENTADOR (Español) ═══════════════════ */
+NOTES_ALL.es = [
+  `Apertura: «Esta sesión es práctica — el mismo código de agente, tres apps reales y el proveedor cambiado con un solo archivo de configuración. Vamos a verlo funcionar.» Respira, sonríe, arranca.`,
+  `Un agente es un bean CDI que percibe un evento, razona con un LLM, decide si continuar y actúa — dentro de un workflow de fases. Programas contra anotaciones y una interfaz; el servidor aporta el motor y el proveedor. La analogía con JPA funciona bien.`,
+  `Tres problemas: vendor lock-in, sin integración con el contenedor, workflows ad-hoc. La spec responde a cada uno con CDI y un modelo de fases estándar. Los tres samples de hoy son la prueba — sostén esa promesa.`,
+  `La recompensa, en concreto. El agente no nombra ningún proveedor. Cambiar Ollama por Claude es este archivo de propiedades — sin código, sin pom, sin recompilar, porque el backend vive en el servidor. Dilo despacio; esta es la tesis de toda la charla.`,
+  `Modelo mental rápido para que los samples se lean claros: un Trigger obligatorio desde un evento CDI, Decisions y Actions que se intercalan, un Outcome opcional y HandleException atravesándolo todo. Dispara el evento y todo corre de forma síncrona; los datos fluyen por tipo.`,
+  `Una aclaración que siempre preguntan: CDI puro puede disparar el trigger, pero el resto necesita un motor — el agentic-ai-core de Payara, una extensión CDI portable. Todo lo que verás es Jakarta EE estándar; el agente no tiene clase base de framework ni nombre de proveedor.`,
+  `Aquí está el mapa de la demo: el quickstart enseña las cuatro fases; el tutorial generator añade generar-y-refinar; el course content studio añade dos agentes encadenados por eventos y corrección por LLM. El mismo modelo en todos — señala la columna del proveedor: solo cambia la config.`,
+  `El agente más pequeño. Un POST dispara un evento Question; el workflow corre de forma síncrona, así que la respuesta del LLM vuelve en el mismo response. Una pregunta vacía choca con la compuerta de la decisión y termina anticipadamente. Corre sobre Ollama local gratuito — una primera ejecución en vivo segura, si quieres.`,
+  `El agente entero en una diapositiva — cuatro fases, cada una registrando su prefijo. Si lo ejecuto, vemos el log ir TRIGGER, DECISION, ACTION, OUTCOME. Fíjate de nuevo: sin proveedor, sin clase base, solo métodos anotados en un bean.`,
+  `Un contraste estupendo para enseñar en vivo: hazle al quickstart dos preguntas relacionadas — la segunda no tiene memoria de la primera. No es un bug: el estado conversacional es por workflow. Cada POST dispara un evento nuevo, un contexto WorkflowScoped nuevo, una conversación fresca con el LLM, destruida en el outcome. Dos peticiones son dos workflows. Pero la memoria SÍ persiste dentro de un workflow, entre sus fases — exactamente en lo que se apoya la conclusión del Course Content Studio. Úsalo para preparar ese momento.`,
+  `Sample dos, un caso de uso real: un agente escribe una guía campo a campo de un formulario web y luego la refina por chat. Dos ideas que señalar: una fuente única de verdad para el formulario y el evento llevando generar-frente-a-refinar. Corre sobre Claude en Vertex, por la calidad de la salida.`,
+  `Los patrones que vale la pena robar: el prompt de refinamiento reenvía el artefacto actual — edita el artefacto, no la memoria — con dos placeholders. stripCodeFences limpia las vallas sueltas. Y refine-field mezcla un campo de vuelta, limitando el daño. Nota honesta: la salida del LLM necesita tratamiento defensivo.`,
+  `El plato fuerte — Course Content Studio. Dos agentes encadenados por un evento CDI, con una compuerta de aprobación humana. Voy a cambiar a la aplicación en vivo ahora y volveré después a esta diapositiva de arquitectura.`,
+  `Tras la ejecución en vivo, aterriza la arquitectura aquí. CourseContentAgent escribe el paquete; aprobar dispara LessonApproved, que activa PublishAgent. Sin orquestador — la aprobación es el evento entre ambos. Fases ordenadas, memoria del workflow, parseo defensivo del cuestionario, progreso SSE en vivo.`,
+  `Dos detalles de cierre de la demo. Las preguntas abiertas las corrige el LLM — una puntuación de similitud, con umbrales aplicados en el servidor — y esa llamada inyecta el LargeLanguageModel directamente en un recurso REST, sin agente, porque la fachada es @Dependent. La config es Vertex/Claude sonnet, en la nube, porque en local agotaría el timeout.`,
+  `Pistas del guion: genera Física y mira el popup SSE junto con las fórmulas en LaTeX; refina solo el cuestionario y añade una pregunta abierta; aprueba y publica para disparar el segundo agente; abre la vista del alumno y corrige la respuesta abierta. Si el token caducó, narra el paquete pregenerado — no depures en vivo.`,
+  `Da un paso atrás: tres samples, el mismo estilo de agente, proveedor por config. Ningún agente nombró un proveedor. Ollama a Claude a Vertex es un archivo de propiedades — esa es toda la tesis, y acabas de verla funcionar.`,
+  `Tres cosas para recordar: los agentes son beans CDI con un workflow de fases; neutralidad de proveedor real vía config; y los agentes se componen mediante eventos. Todo Jakarta EE estándar — sin framework propietario.`,
+  `Gracias — invita a preguntar y ten a mano los enlaces de los repositorios de samples. Respira y disfruta del Q&A.`,
+];
+
+
+let LANG = (function(){
+  const q = new URLSearchParams(location.search).get('lang');
+  if(q && DECKS[q] && DECKS[q].length) return q;
+  try { const v = localStorage.getItem('jaai.deck.lang'); if(v && DECKS[v] && DECKS[v].length) return v; } catch(e){}
+  return 'en';
+})();
+let slides = DECKS[LANG];
+let NOTES  = NOTES_ALL[LANG];
 
 /* Rough per-slide time budget in seconds; slide 29 (Demo 3) holds the live-demo time.
    Cumulative total ≈ 20 min. Tweak freely — the presenter shows per-slide + cumulative. */
@@ -578,24 +1267,59 @@ document.getElementById('presenter-btn').onclick = openPresenter;
 
 /* ═══════════════════ ENGINE ═══════════════════ */
 const stage = document.getElementById('stage');
-slides.forEach((s, i) => {
-  const el = document.createElement('div');
-  el.className = 'slide ' + s.cls;
-  el.id = 'slide-' + (i + 1);
-  el.innerHTML = s.html + (s.cls.includes('s-title') ? '' :
-    '<div class="foot"><span class="logo">Jakarta <b>Agentic AI</b> · Payara DEMO 2026</span><span>' + (i + 1) + ' / ' + slides.length + '</span></div>');
-  stage.appendChild(el);
-});
-
-/* overview grid */
 const grid = document.getElementById('grid');
-slides.forEach((s, i) => {
-  const t = document.createElement('div');
-  t.className = 'thumb';
-  t.innerHTML = '<div class="t-label"><span class="t-num">' + (i + 1) + '</span><span class="t-title">' + s.title + '</span></div>';
-  t.onclick = () => { document.body.classList.remove('overview'); go(i + 1); };
-  grid.appendChild(t);
+
+function renderDeck(){
+  stage.innerHTML = '';
+  grid.innerHTML = '';
+  slides.forEach((s, i) => {
+    const el = document.createElement('div');
+    el.className = 'slide ' + s.cls;
+    el.id = 'slide-' + (i + 1);
+    el.innerHTML = s.html + (s.cls.includes('s-title') ? '' :
+      '<div class="foot"><span class="logo">Jakarta <b>Agentic AI</b> · Payara DEMO 2026</span><span>' + (i + 1) + ' / ' + slides.length + '</span></div>');
+    stage.appendChild(el);
+    const t = document.createElement('div');
+    t.className = 'thumb';
+    t.innerHTML = '<div class="t-label"><span class="t-num">' + (i + 1) + '</span><span class="t-title">' + s.title + '</span></div>';
+    t.onclick = () => { document.body.classList.remove('overview'); go(i + 1); };
+    grid.appendChild(t);
+  });
+}
+
+/* language switcher: same slide index, same presenter window */
+const langbar = document.getElementById('langbar');
+['en', 'es', 'pt'].forEach(code => {
+  if(!DECKS[code] || !DECKS[code].length) return;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.dataset.lang = code;
+  b.title = LANG_NAME[code];
+  b.setAttribute('aria-label', LANG_NAME[code]);
+  b.innerHTML = LANG_META[code];
+  b.onclick = () => setLang(code);
+  langbar.appendChild(b);
 });
+function paintLangbar(){
+  langbar.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.lang === LANG));
+}
+function setLang(code){
+  if(code === LANG || !DECKS[code] || !DECKS[code].length) return;
+  const at = cur;
+  LANG = code;
+  slides = DECKS[code];
+  NOTES = NOTES_ALL[code];
+  try { localStorage.setItem('jaai.deck.lang', code); } catch(e){}
+  document.documentElement.lang = code === 'pt' ? 'pt-BR' : code;
+  const url = new URL(location.href);
+  url.searchParams.set('lang', code);
+  history.replaceState(null, '', url.pathname + url.search + '#' + at);
+  renderDeck();
+  paintLangbar();
+  cur = 0;
+  go(at);
+  if(presenterWin && !presenterWin.closed){ presenterWin.close(); presenterWin = null; openPresenter(); }
+}
 
 let cur = 0;
 function go(n){
@@ -628,10 +1352,15 @@ window.addEventListener('keydown', e => {
 });
 document.addEventListener('click', e => {
   if(document.body.classList.contains('overview')) return;
+  // chrome buttons sit in the click-to-navigate margins — don't treat them as stage clicks
+  if(e.target.closest && e.target.closest('#langbar, #presenter-btn')) return;
   if(e.clientX > window.innerWidth * 0.7) go(cur + 1);
   else if(e.clientX < window.innerWidth * 0.15) go(cur - 1);
 });
 
+renderDeck();
+paintLangbar();
+document.documentElement.lang = LANG === 'pt' ? 'pt-BR' : LANG;
 fit();
 go(parseInt(location.hash.slice(1)) || 1);
 </script>

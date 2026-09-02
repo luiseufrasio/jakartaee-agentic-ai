@@ -21,19 +21,33 @@ próprio framework interno do TCK ficam em `src/test/java`.
 | `@RequiresImplementation` | método/classe | Pula o teste quando **não** há implementação compatível presente. |
 | `@RequiresNoImplementation` | método/classe | Pula o teste quando **há** implementação — usado para asserções de baseline "CDI puro" (só trigger). |
 
-## A detecção de implementação — o truque elegante
+## A detecção de implementação — o opt-in explícito
 
 Como o TCK sabe se está rodando sobre uma implementação compatível (Payara) ou
 sobre CDI puro (Weld sem engine)? A `ImplementationPresentCondition` (JUnit 5
-`ExecutionCondition`) verifica **em runtime, dentro do container**:
+`ExecutionCondition`) verifica **em runtime, dentro do container**, uma única
+system property:
 
 ```java
-!CDI.current().getBeanManager().getContexts(WorkflowScoped.class).isEmpty()
+public static final String IMPLEMENTATION_PRESENT_PROPERTY =
+        "jakarta.ai.agent.tck.implementation.present";
+
+// ...
+return Boolean.getBoolean(IMPLEMENTATION_PRESENT_PROPERTY);
 ```
 
-**Toda implementação compatível registra um `Context` para `@WorkflowScoped`; CDI
-puro não.** Portanto a presença desse contexto é o fingerprint da implementação —
-sem precisar de system property, flag de JVM ou configuração do vendor.
+A implementação que roda o TCK a define como `true` (tipicamente via
+`-Djakarta.ai.agent.tck.implementation.present=true` no `argLine` do
+Surefire/Failsafe). **Ausente significa "sem implementação compatível"** — que é
+exatamente o que uma execução em CDI puro (Weld/OpenWebBeans) das asserções de
+baseline precisa, então o padrão não exige configuração nenhuma.
+
+> **Por que uma property e não uma sondagem do container?** Uma versão anterior
+> identificava a implementação perguntando ao `BeanManager` se havia um `Context`
+> registrado para `@WorkflowScoped` — toda implementação compatível registra um,
+> CDI puro não. Elegante, mas **não portável no baseline Jakarta EE 10**: o
+> `BeanManager` do CDI 4.0 não expõe forma de enumerar os contextos registrados.
+> O opt-in explícito funciona em qualquer container CDI 4.0.
 
 Detalhe sutil: no Arquillian as conditions são avaliadas **duas vezes** — no JVM
 cliente (fora do container) e dentro do container. Fora do container não dá para
@@ -69,8 +83,15 @@ Duas classes `@ApplicationScoped` que não são testes, mas ferramentas:
 - `core/lifecycle` — estrutura de `@Trigger`, `@Decision`, `@Action`, `@Outcome`,
   `@HandleException`.
 - `core/cdi` — metadados CDI do agente e do `@WorkflowScoped`.
-- `core/behavior` — os testes comportamentais deployados, cada um com seu conjunto
-  de agentes de fixture:
+- `core/integration` — `AgentSmokeTest`: a verificação ponta a ponta sobre um
+  `GreetingAgent`.
+- `core/behavior` — as classes de teste comportamental deployadas
+  (`OrchestrationTests`, `TerminationTests`, `DataPropagationTests`,
+  `PhaseOrderingTests`, `HandleExceptionTests`, `CdiIntegrationTests`,
+  `ContextInjectionTests`, `LlmContractTests`, `VoidPhasesTests`,
+  `TopologyFlexTests`, `WorkflowScopeLifecycleTests`). Cada classe faz o deploy dos
+  seus próprios agentes de fixture, que ficam um pacote abaixo, em
+  `core/behavior/agents/<tópico>`:
   - `orchestration` — topologias: minimalista, linear, intercalada, branching,
     outcome-only, anchored;
   - `termination` — os três padrões de terminação de decisão (boolean, `Result`,
@@ -81,9 +102,12 @@ Duas classes `@ApplicationScoped` que não são testes, mas ferramentas:
     guarda anti-recursão, ausência de handler;
   - `cdi` — interceptors, injeção por construtor, callbacks de ciclo de vida,
     escopo default, agentes singleton;
+  - `contextinjection` — o que uma fase pode receber do contexto do workflow;
   - `voidphases`, `topologyflex`, `llm` — fases void, fases opcionais, contrato LLM
     em workflow real.
-- `framework/signature` — testes de assinatura da API (compatibilidade binária).
+- `framework/signature` — testes de assinatura da API (compatibilidade binária),
+  com a superfície registrada em
+  `src/main/resources/.../signature/jakarta.ai.agent.sig_1.0`.
 
 ## Exemplos concretos
 
@@ -162,12 +186,19 @@ public void triggerOutputIsInjectableInDecision() {
 Cobre o **contrato de erro** do `LargeLanguageModel` — validação de argumentos, mapeamento de placeholders `{}`, serialização via JSON-B, e a garantia de **isolamento por workflow** (estado conversacional não vaza entre execuções). Um exemplo típico:
 
 ```java
-@Assertion(strategy = "more parameters than placeholders must throw IllegalArgumentException")
-public void tooManyParamsFailsFast() {
-    assertThrows(IllegalArgumentException.class,
-        () -> llm.chat("Hello {}", "world", "extra"));
+@Assertion(id = "AGENTICAI-LLM-BHV-002",
+           section = "LLM Interface, Positional Parameters",
+           strategy = "more parameters than placeholders must throw IllegalArgumentException")
+public void arityMoreParamsThanPlaceholdersThrows() {
+    stub.reset();
+    stub.enqueueResponse("ok");
+    assertThatThrownBy(() -> llm.query("one {} here", "a", "b"))
+            .isInstanceOf(IllegalArgumentException.class);
 }
 ```
+
+Repare que o `id` é **obrigatório** em `@Assertion` (`section` e `strategy` têm
+default vazio): todo teste do TCK precisa nomear o requisito que verifica.
 
 ## Comandos de build
 
@@ -205,16 +236,19 @@ que os **implementadores** baixam e executam contra a implementação deles. Tes
 interno do TCK ficam em `src/test/java`.
 </details>
 
-**2.** Como a `ImplementationPresentCondition` detecta que uma implementação
-compatível está presente, sem nenhuma configuração do vendor?
+**2.** Como a `ImplementationPresentCondition` decide que uma implementação
+compatível está presente, e por que isso é um opt-in explícito em vez de uma
+sondagem do container?
 
 <details><summary>Ver resposta</summary>
 
-Ela verifica, dentro do container, se existe um **`Context` CDI registrado para o
-escopo `@WorkflowScoped`**:
-`CDI.current().getBeanManager().getContexts(WorkflowScoped.class)`. Toda
-implementação compatível registra esse contexto (é requisito da spec); CDI puro
-não registra. É um fingerprint em runtime — sem system property nem flag de JVM.
+Ela lê, dentro do container, a system property
+**`jakarta.ai.agent.tck.implementation.present`** — as implementações a definem
+como `true` ao rodar o TCK; ausente significa "baseline em CDI puro", então o
+padrão não exige configuração. É opt-in em vez de sondagem porque a abordagem
+anterior (verificar se havia um `Context` registrado para `@WorkflowScoped`) não é
+portável no baseline Jakarta EE 10: **o `BeanManager` do CDI 4.0 não consegue
+enumerar os contextos registrados**.
 </details>
 
 **3.** O que acontece quando a condition é avaliada no JVM **cliente** do

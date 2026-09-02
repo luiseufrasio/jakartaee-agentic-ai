@@ -19,9 +19,12 @@ The pieces you have seen fit together like this:
    `ThreadLocal` scope; the self-vetoing LLM (which enables stub-based testing).
 5. **The tutorial generator.** Generate a form guide with Claude; refine it via
    chat; refine a single field. Switching Ollama↔Claude is **one properties file**.
-6. **The TCK and the road ahead.** How compatibility is proven; detecting the
-   implementation via the `@WorkflowScoped` context; what may come next (multiple
-   triggers, other event sources, standardized LLM config).
+6. **The Course Content Studio.** Two agents chained by CDI events with a human
+   approval gate, ordered phases, workflow conversational memory and LLM grading.
+7. **The TCK and the road ahead.** How compatibility is proven; the
+   `jakarta.ai.agent.tck.implementation.present` opt-in that separates
+   plain-CDI baseline assertions from behavioral ones; what may come next
+   (multiple triggers, other event sources, standardized LLM config).
 
 ## Running the samples — checklist
 
@@ -30,15 +33,20 @@ The pieces you have seen fit together like this:
 - [ ] The current `agentic-ai-core.jar` copied into the distribution's
       `glassfish/modules/` + domain restarted **clearing the OSGi cache**
       (classic gotcha: new JAR with an old cache = old class).
-- [ ] `ANTHROPIC_API_KEY` exported **in the same shell/environment that starts the
-      domain** (`$env:ANTHROPIC_API_KEY = "sk-ant-..."` before
-      `asadmin restart-domain`) — the server process inherits its parent's
-      environment.
-- [ ] Both WARs deployed and tested.
+- [ ] The cloud provider's credentials present **in the same shell/environment
+      that starts the domain** (the server process inherits its parent's
+      environment), *before* `asadmin restart-domain`. For the default Vertex
+      config: `gcloud auth application-default login` plus
+      `ANTHROPIC_VERTEX_PROJECT_ID` / `CLOUD_ML_REGION`. If you switch to
+      `provider=anthropic`: `$env:ANTHROPIC_API_KEY = "sk-ant-..."`.
+- [ ] All three WARs deployed and tested (`quickstart.war`,
+      `tutorial-generator.war`, `course.war`).
 - [ ] `server.log` open in a terminal (`Get-Content -Wait -Tail 0`).
 - [ ] Fully-local option: the quickstart runs on Ollama; the tutorial generator
       can also fall back to `provider=ollama` / `model=gemma3:12b` (pull the model
-      first).
+      first). The Course Content Studio does **not** fall back well — the Ollama
+      backend's 120 s per-call timeout is shorter than a laptop 12B model's quiz
+      step.
 - [ ] Requests ready (no typing JSON by hand): a script/`.http` file with the
       valid POST, the empty POST and the refines.
 
@@ -84,8 +92,9 @@ Javadocs.
 
 **"Does it run locally? How much does it cost?"**
 Quickstart: Ollama + gemma3:4b, zero cost, zero network. Tutorial generator:
-Claude for HTML quality, with prompt caching to cut cost — but it runs on Ollama
-too.
+Claude on Vertex for output quality, with prompt caching to cut cost — but it runs
+on Ollama too. Course Content Studio needs the cloud: the Ollama backend's 120 s
+per-call timeout is too short for its quiz step on a laptop.
 
 ## Key takeaways
 
@@ -135,17 +144,19 @@ immediate, deterministic feedback, instead of undefined behavior on the first
 production run — the same philosophy CDI applies to malformed beans.
 </details>
 
-**3.** The tutorial generator returns an empty guide and the log shows
-`IllegalStateException: Anthropic provider selected but no API key found`. What was
-the operational mistake and what is the fix?
+**3.** You switched the tutorial generator to `provider=anthropic`, it returns an
+empty guide, and the log shows `IllegalStateException: ... no API key found`. What
+was the operational mistake and what is the fix?
 
 <details><summary>Show answer</summary>
 
 The `ANTHROPIC_API_KEY` was not in the **server process's** environment — probably
 exported in a different shell or after the domain started. Fix:
 `$env:ANTHROPIC_API_KEY = "sk-ant-..."` and **then** `asadmin restart-domain` in
-the same shell (the server inherits the environment of whoever starts it). Plan B:
-switch to `provider=ollama` in the microprofile-config.
+the same shell (the server inherits the environment of whoever starts it). The same
+trap applies to the shipped Vertex config, where the missing piece is ADC /
+`ANTHROPIC_VERTEX_PROJECT_ID` instead. Plan B: switch to `provider=ollama` in the
+microprofile-config.
 </details>
 
 **4.** Someone claims: "this is just an annotation wrapper around an HTTP call to

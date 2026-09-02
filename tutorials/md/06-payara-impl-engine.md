@@ -125,9 +125,11 @@ Since each workflow runs on the `Event.fire()` thread, the `ThreadLocal` provide
 **isolation between concurrent workflows** for free: two simultaneous REST requests
 activate independent contexts on different threads.
 
-It is the **registration of this `Context`** that the TCK uses as the fingerprint
-to detect a compatible implementation (chapter 4) — a neat full-circle moment
-between spec and implementation.
+Registering this `Context` is also what makes Payara a *compatible* implementation
+in the spec's sense — though the TCK does not probe for it: on the Jakarta EE 10
+baseline, CDI 4.0's `BeanManager` cannot enumerate registered contexts, so the TCK
+asks the implementation to declare itself through the
+`jakarta.ai.agent.tck.implementation.present` system property (chapter 4).
 
 ---
 

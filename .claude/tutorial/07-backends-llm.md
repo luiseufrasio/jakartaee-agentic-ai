@@ -149,7 +149,8 @@ e por que isso demonstra bem o valor da spec?
 <details><summary>Ver resposta</summary>
 
 Do `META-INF/microprofile-config.properties` de cada WAR (quickstart: Ollama +
-`gemma3:4b`; tutorial: Anthropic + `claude-opus-4-8` + system prompt). O **código
+`gemma3:4b`; tutorial generator e course content studio: Vertex +
+`claude-sonnet-4-6` + system prompt). O **código
 dos agentes é idêntico em estilo e não menciona provedor nenhum** — trocar de um
 modelo local gratuito para Claude na nuvem é editar um arquivo de propriedades.
 Vendor-neutralidade na prática.

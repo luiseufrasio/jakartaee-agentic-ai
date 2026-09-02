@@ -6,15 +6,37 @@ loop de refinamento via chat; e o **Course Content Studio** sobe o nível para
 **dois agentes encadeados por eventos CDI**, com aprovação humana no meio e uma
 visão final para o aluno.
 
+### Onde o código mora
+
+Os três agora ficam **dentro do repositório da especificação**, em `examples/` —
+vendor-neutros, dependendo apenas de `jakarta.agentic-ai-api` e do guarda-chuva da
+plataforma Jakarta EE:
+
+| Sample | Módulo | WAR / context root |
+| --- | --- | --- |
+| Quickstart | `examples/quickstart` | `quickstart.war` → `/quickstart` |
+| Tutorial Generator | `examples/tutorial-generator` | `tutorial-generator.war` → `/tutorial-generator` |
+| Course Content Studio | `examples/course-content-studio` | `course.war` → `/course` |
+
+(`examples/` também traz duas ilustrações menores, não deployáveis —
+`fraud-detection` e `docs-agent`.)
+
+Um **gêmeo com sabor Payara** dos dois primeiros vive na árvore da Payara, em
+`appserver/tests/payara-samples/samples/agentic-ai-quickstart` e
+`.../samples/agentic-ai`. Mesmos agentes, empacotamento diferente: são eles que
+carregam os **testes de integração** Arquillian discutidos adiante, e fazem deploy
+em `/agentic-ai-quickstart` e `/agentic-ai`. Tudo neste capítulo vale para os dois;
+os caminhos citados são os de `examples/`.
+
 ---
 
-## Sample 1 — `agentic-ai-quickstart`
+## Sample 1 — `examples/quickstart`
 
 **O menor agente possível que exercita as quatro fases.** Um POST REST dispara um
 evento CDI; o agente responde a pergunta com o LLM configurado.
 
 ```
-POST /agentic-ai-quickstart/api/ask  { "question": "..." }  →  { "question", "answer" }
+POST /quickstart/api/ask  { "question": "..." }  →  { "question", "answer" }
 ```
 
 ### O fluxo completo, classe por classe
@@ -82,22 +104,24 @@ payara.agentic.llm.ollama.base-url=http://localhost:11434
 1. `winget install Ollama.Ollama` e `ollama pull gemma3:4b`;
 2. Garantir que a distribuição tem o `agentic-ai-core` atual (package + copiar o
    JAR para `glassfish/modules/` + restart limpando cache OSGi);
-3. `mvn package` do sample e `asadmin deploy .../agentic-ai-quickstart.war`;
-4. POST em `/agentic-ai-quickstart/api/ask` e acompanhar
+3. `mvn -pl examples/quickstart -am package` e
+   `asadmin deploy examples/quickstart/target/quickstart.war`;
+4. POST em `/quickstart/api/ask` e acompanhar
    `[TRIGGER] → [DECISION] → [ACTION] → [OUTCOME]` no `server.log`;
 5. Repetir com `question` vazia → `[DECISION] proceed=false` e a resposta
    "(no answer — workflow terminated...)".
 
 ### Teste de integração
 
-`AgenticQuickstartIT` (Arquillian) **não precisa de LLM vivo**: o deployment inclui
-`StubLargeLanguageModel` e, pela regra do **LLM auto-vetado** (capítulo 5), o LLM
-da aplicação vence o default do runtime. O teste assevera a resposta roteirizada e
-a terminação antecipada com pergunta em branco.
+O gêmeo Payara acrescenta o `AgenticQuickstartIT` (Arquillian), que **não precisa
+de LLM vivo**: o deployment inclui `StubLargeLanguageModel` e, pela regra do **LLM
+auto-vetado** (capítulo 5), o LLM da aplicação vence o default do runtime. O teste
+assevera a resposta roteirizada e a terminação antecipada com pergunta em branco. O
+módulo em `examples/` não traz testes — é orientado a deployment.
 
 ---
 
-## Sample 2 — `agentic-ai` (Tutorial Generator)
+## Sample 2 — `examples/tutorial-generator`
 
 **Caso de uso real:** um agente escreve um **guia campo-a-campo** de um formulário
 web (cadastro de cliente para contratar o Azul Payara Server) e permite **refinar o
@@ -105,11 +129,12 @@ guia por chat**. A página mostra o formulário à esquerda, o guia gerado à di
 um chat de refinamento embaixo.
 
 ```
-GET  /agentic-ai/                        UI lado a lado
-GET  /agentic-ai/api/form                metadados do formulário (FormSpec)
-POST /agentic-ai/api/tutorial/generate   gera um guia novo
-POST /agentic-ai/api/tutorial/refine     { "instruction": "..." } refina o guia todo
-POST /agentic-ai/api/tutorial/refine-field  refina UM campo e mescla de volta
+GET  /tutorial-generator/                           UI lado a lado
+GET  /tutorial-generator/api/form                   metadados do formulário (FormSpec)
+GET  /tutorial-generator/api/tutorial               o guia atual
+POST /tutorial-generator/api/tutorial/generate      gera um guia novo
+POST /tutorial-generator/api/tutorial/refine        { "instruction": "..." } refina o guia todo
+POST /tutorial-generator/api/tutorial/refine-field  refina UM campo e mescla de volta
 ```
 
 ### As ideias fortes do design
@@ -148,33 +173,37 @@ POST /agentic-ai/api/tutorial/refine-field  refina UM campo e mescla de volta
 Repare: o prompt de refinamento usa **dois placeholders `{}`** — guia atual e
 instrução, substituídos posicionalmente.
 
-### Configuração (Anthropic/Claude — qualidade de HTML)
+### Configuração (Vertex/Claude — qualidade da saída)
 
 ```properties
-payara.agentic.llm.provider=anthropic
-payara.agentic.llm.model=claude-opus-4-8
+payara.agentic.llm.provider=vertex
+payara.agentic.llm.model=claude-sonnet-4-6
 payara.agentic.llm.max-tokens=8192
 payara.agentic.llm.system=You are a senior technical writer...
 ```
 
 O prompt de sistema vem da **configuração** (não do código) e vira o **prefixo de
 prompt caching** (capítulo 7). Para rodar 100% local: trocar para
-`provider=ollama` / `model=gemma3:12b` (12B recomendado para HTML de qualidade).
+`provider=ollama` / `model=gemma3:12b` (12B recomendado para qualidade de saída).
+Para usar a API direta da Anthropic em vez do Vertex: `provider=anthropic` +
+`payara.agentic.llm.anthropic.api-key` (ou a env var `ANTHROPIC_API_KEY`).
 
-⚠️ **Pegadinha operacional:** a `ANTHROPIC_API_KEY` precisa estar no ambiente
-**antes** do `asadmin restart-domain`, para o processo do servidor herdá-la.
+⚠️ **Pegadinha operacional:** qualquer credencial que o provedor escolhido exija
+precisa estar no ambiente **antes** do `asadmin restart-domain` — o processo do
+servidor herda o ambiente de quem o inicia. Para Vertex isso significa Application
+Default Credentials (`gcloud auth application-default login`) mais
+`ANTHROPIC_VERTEX_PROJECT_ID` / `CLOUD_ML_REGION`; para Anthropic, a
+`ANTHROPIC_API_KEY`.
 
 ### Teste de integração
 
-`AgenticTutorialIT` — mesmo padrão do quickstart: `StubLargeLanguageModel` no
-deployment, sem LLM vivo. Assevera que o form é exposto, o guia é gerado e um
-refinamento via chat produz resultado diferente.
+O gêmeo Payara acrescenta o `AgenticTutorialIT` — mesmo padrão do quickstart:
+`StubLargeLanguageModel` no deployment, sem LLM vivo. Assevera que o form é
+exposto, o guia é gerado e um refinamento via chat produz resultado diferente.
 
 ---
 
-## Sample 3 — `course-content-studio` (domínio educação)
-
-📦 Repositório: <https://github.com/luieufrasio/course-content-studio>
+## Sample 3 — `examples/course-content-studio` (domínio educação)
 
 **Caso de uso avançado:** o professor cola o conteúdo de um capítulo e escolhe a
 matéria (matemática, física, inglês); um agente gera **introdução + quiz +
@@ -186,7 +215,10 @@ por eventos CDI**.
 ```
 GET  /course/                           studio (capítulo à esquerda, pacote à direita, chat de revisão)
 GET  /course/student.html               a aula publicada, como o aluno vê
+GET  /course/api/subjects               as matérias disponíveis (matemática, física, inglês)
+GET  /course/api/packet                 o pacote atualmente no studio
 POST /course/api/packet/generate        gera intro + quiz + conclusão
+POST /course/api/packet/refine          refina o pacote inteiro
 POST /course/api/packet/refine-section  { section: intro|quiz|conclusion|all, instruction }
 POST /course/api/packet/approve         aprova + dispara o PublishAgent
 GET  /course/api/lesson                 a aula publicada (student-facing)
@@ -202,7 +234,7 @@ GET  /course/api/progress/{runId}       progresso ao vivo das fases (Server-Sent
    **aprovação humana** é o gate entre os dois. Cada agente tem seu próprio
    workflow e sua própria conversa com o LLM.
 2. **Fases ordenadas de verdade.** As fases carregam `order` explícito
-   (`@Decision(order=5)`, `@Action(order=10/20/30)`), garantindo intro → quiz →
+   (`@Decision(order = 1)`, `@Action(order = 2/3/4)`), garantindo intro → quiz →
    conclusão. Lembrete do cap. 5: se **uma** fase é ordenada, **todas** têm que
    ser, senão o deploy cai com "Inconsistent order".
 3. **Estado por-workflow no próprio agente.** Sem anotação de escopo → o runtime
@@ -238,12 +270,13 @@ GET  /course/api/progress/{runId}       progresso ao vivo das fases (Server-Sent
 class CourseContentAgent {
     private CoursePacket draft;                                   // estado @WorkflowScoped
     @Trigger  void onRequest(@Valid CoursePacketRequest r)        // generate | refine
-    @Decision(order = 5)  boolean hasTeachableContent(...)        // gate
-    @Action(order = 10)   void writeIntro(...)                    // prosa (rubrica por matéria)
-    @Action(order = 20)   void writeQuiz(...)  { draft.setQuiz(parseQuiz(model.query(...))); }
-    @Action(order = 30)   void writeConclusion(...)               // usa a memória do workflow
+    @Decision(order = 1)  boolean hasTeachableContent(...)        // gate
+    @Action(order = 2)    void writeIntro(...)                    // prosa (rubrica por matéria)
+    @Action(order = 3)    void writeQuiz(...)  { draft.setQuiz(parseQuiz(model.query(...))); }
+    @Action(order = 4)    void writeConclusion(...)               // usa a memória do workflow
     @Outcome  void publish(...)                                   // grava no PacketStore
     @HandleException void onLlmFailure(LLMException e)            // resiliência
+    @HandleException void onInvalidRequest(ConstraintViolationException e)
 }
 
 // Agente 2 — publicação, disparado por LessonApproved (encadeamento por evento)
@@ -253,8 +286,13 @@ class PublishAgent {
     @Decision boolean hasApprovedContent(...)
     @Action   void writeObjectives(...)                          // LLM: "o que você vai aprender"
     @Outcome  void publish(...)                                  // grava no PublishedLessonStore
+    @HandleException void onLlmFailure(LLMException e)
 }
 ```
+
+Os **dois** handlers no `CourseContentAgent` são a regra de seleção de handler do
+capítulo 2 em produção: uma queda do LLM e uma falha de Bean Validation no trigger
+são tipos de falha diferentes, cada um com seu handler mais específico.
 
 ### Configuração (Vertex/Claude — nuvem, à prova de demo)
 

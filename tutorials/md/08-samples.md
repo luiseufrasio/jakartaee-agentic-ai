@@ -6,15 +6,37 @@ with a chat refinement loop; and the **Course Content Studio** raises the bar to
 **two agents chained by CDI events**, with a human approval gate in the middle and
 a final student-facing view.
 
+### Where the code lives
+
+All three now ship **inside the specification repository**, under `examples/` —
+vendor-neutral, depending only on `jakarta.agentic-ai-api` and the Jakarta EE
+platform umbrella:
+
+| Sample | Module | WAR / context root |
+| --- | --- | --- |
+| Quickstart | `examples/quickstart` | `quickstart.war` → `/quickstart` |
+| Tutorial Generator | `examples/tutorial-generator` | `tutorial-generator.war` → `/tutorial-generator` |
+| Course Content Studio | `examples/course-content-studio` | `course.war` → `/course` |
+
+(`examples/` also carries two smaller, non-deployable illustrations —
+`fraud-detection` and `docs-agent`.)
+
+A **Payara-flavoured twin** of the first two lives in the Payara tree, under
+`appserver/tests/payara-samples/samples/agentic-ai-quickstart` and
+`.../samples/agentic-ai`. Same agents, different packaging: those carry the
+Arquillian **integration tests** discussed below and deploy at `/agentic-ai-quickstart`
+and `/agentic-ai`. Everything in this chapter applies to both; the paths quoted
+are the `examples/` ones.
+
 ---
 
-## Sample 1 — `agentic-ai-quickstart`
+## Sample 1 — `examples/quickstart`
 
 **The smallest possible agent that exercises the four phases.** A REST POST fires
 a CDI event; the agent answers the question with the configured LLM.
 
 ```
-POST /agentic-ai-quickstart/api/ask  { "question": "..." }  →  { "question", "answer" }
+POST /quickstart/api/ask  { "question": "..." }  →  { "question", "answer" }
 ```
 
 ### The complete flow, class by class
@@ -83,22 +105,24 @@ payara.agentic.llm.ollama.base-url=http://localhost:11434
 1. `winget install Ollama.Ollama` and `ollama pull gemma3:4b`;
 2. Make sure the distribution has the current `agentic-ai-core` (package + copy
    the JAR into `glassfish/modules/` + restart clearing the OSGi cache);
-3. `mvn package` the sample and `asadmin deploy .../agentic-ai-quickstart.war`;
-4. POST to `/agentic-ai-quickstart/api/ask` and watch
+3. `mvn -pl examples/quickstart -am package` and
+   `asadmin deploy examples/quickstart/target/quickstart.war`;
+4. POST to `/quickstart/api/ask` and watch
    `[TRIGGER] → [DECISION] → [ACTION] → [OUTCOME]` in `server.log`;
 5. Repeat with an empty `question` → `[DECISION] proceed=false` and the answer
    "(no answer — workflow terminated...)".
 
 ### Integration test
 
-`AgenticQuickstartIT` (Arquillian) **needs no live LLM**: the deployment includes
-`StubLargeLanguageModel` and, by the **self-vetoing LLM** rule (chapter 5), the
-application's LLM beats the runtime's default. The test asserts the scripted
-answer and the early termination on a blank question.
+The Payara twin adds `AgenticQuickstartIT` (Arquillian), which **needs no live
+LLM**: the deployment includes `StubLargeLanguageModel` and, by the **self-vetoing
+LLM** rule (chapter 5), the application's LLM beats the runtime's default. The test
+asserts the scripted answer and the early termination on a blank question. The
+`examples/` module ships no tests — it is deployment-oriented.
 
 ---
 
-## Sample 2 — `agentic-ai` (Tutorial Generator)
+## Sample 2 — `examples/tutorial-generator`
 
 **A real use case:** an agent writes a **field-by-field guide** for a web form (a
 customer registration form to contract Azul Payara Server) and allows **refining
@@ -106,11 +130,12 @@ the guide via chat**. The page shows the form on the left, the generated guide o
 the right, and a refinement chat box below.
 
 ```
-GET  /agentic-ai/                           the side-by-side UI
-GET  /agentic-ai/api/form                   the form metadata (FormSpec)
-POST /agentic-ai/api/tutorial/generate      generate a fresh guide
-POST /agentic-ai/api/tutorial/refine        { "instruction": "..." } refine the whole guide
-POST /agentic-ai/api/tutorial/refine-field  refine ONE field and merge it back
+GET  /tutorial-generator/                           the side-by-side UI
+GET  /tutorial-generator/api/form                   the form metadata (FormSpec)
+GET  /tutorial-generator/api/tutorial               the current guide
+POST /tutorial-generator/api/tutorial/generate      generate a fresh guide
+POST /tutorial-generator/api/tutorial/refine        { "instruction": "..." } refine the whole guide
+POST /tutorial-generator/api/tutorial/refine-field  refine ONE field and merge it back
 ```
 
 ### The strong design ideas
@@ -151,34 +176,37 @@ POST /agentic-ai/api/tutorial/refine-field  refine ONE field and merge it back
 Note: the refinement prompt uses **two `{}` placeholders** — the current guide and
 the instruction, substituted positionally.
 
-### Configuration (Anthropic/Claude — HTML quality)
+### Configuration (Vertex/Claude — output quality)
 
 ```properties
-payara.agentic.llm.provider=anthropic
-payara.agentic.llm.model=claude-opus-4-8
+payara.agentic.llm.provider=vertex
+payara.agentic.llm.model=claude-sonnet-4-6
 payara.agentic.llm.max-tokens=8192
 payara.agentic.llm.system=You are a senior technical writer...
 ```
 
 The system prompt comes from **configuration** (not code) and becomes the **prompt
 caching prefix** (chapter 7). To run fully local: switch to
-`provider=ollama` / `model=gemma3:12b` (a 12B-class model is recommended for HTML
-quality).
+`provider=ollama` / `model=gemma3:12b` (a 12B-class model is recommended for output
+quality). To use the direct Anthropic API instead of Vertex:
+`provider=anthropic` + `payara.agentic.llm.anthropic.api-key` (or the
+`ANTHROPIC_API_KEY` env var).
 
-⚠️ **Operational gotcha:** `ANTHROPIC_API_KEY` must be in the environment
-**before** `asadmin restart-domain`, so the server process inherits it.
+⚠️ **Operational gotcha:** whatever credential the chosen provider needs must be in
+the environment **before** `asadmin restart-domain` — the server process inherits
+the environment of whoever starts it. For Vertex that means Application Default
+Credentials (`gcloud auth application-default login`) plus
+`ANTHROPIC_VERTEX_PROJECT_ID` / `CLOUD_ML_REGION`; for Anthropic, `ANTHROPIC_API_KEY`.
 
 ### Integration test
 
-`AgenticTutorialIT` — same pattern as the quickstart: `StubLargeLanguageModel` in
-the deployment, no live LLM. It asserts the form is exposed, the guide is
-generated, and a chat refinement produces a different result.
+The Payara twin adds `AgenticTutorialIT` — same pattern as the quickstart:
+`StubLargeLanguageModel` in the deployment, no live LLM. It asserts the form is
+exposed, the guide is generated, and a chat refinement produces a different result.
 
 ---
 
-## Sample 3 — `course-content-studio` (education domain)
-
-📦 Repository: <https://github.com/luieufrasio/course-content-studio>
+## Sample 3 — `examples/course-content-studio` (education domain)
 
 **An advanced use case:** the teacher pastes a chapter's content and picks a
 subject (mathematics, physics, English); an agent generates an **introduction, a
@@ -190,7 +218,10 @@ differentiator: **agent composition through CDI events**.
 ```
 GET  /course/                           the studio (chapter left, packet right, refine chat)
 GET  /course/student.html               the published lesson, as a student sees it
+GET  /course/api/subjects               the available subjects (maths, physics, English)
+GET  /course/api/packet                 the packet currently in the studio
 POST /course/api/packet/generate        generate intro + quiz + conclusion
+POST /course/api/packet/refine          refine the whole packet
 POST /course/api/packet/refine-section  { section: intro|quiz|conclusion|all, instruction }
 POST /course/api/packet/approve         approve + trigger the PublishAgent
 GET  /course/api/lesson                 the published (student-facing) lesson
@@ -206,7 +237,7 @@ GET  /course/api/progress/{runId}       live phase progress (Server-Sent Events)
    is no orchestrator: the **human approval** is the gate between them. Each agent
    has its own workflow and its own LLM conversation.
 2. **Truly ordered phases.** The phases carry an explicit `order`
-   (`@Decision(order=5)`, `@Action(order=10/20/30)`), guaranteeing intro → quiz →
+   (`@Decision(order = 1)`, `@Action(order = 2/3/4)`), guaranteeing intro → quiz →
    conclusion. Reminder from ch. 5: if **one** phase is ordered, **all** must be,
    otherwise the deploy fails with "Inconsistent order".
 3. **Per-workflow state in the agent itself.** No scope annotation → the runtime
@@ -243,12 +274,13 @@ GET  /course/api/progress/{runId}       live phase progress (Server-Sent Events)
 class CourseContentAgent {
     private CoursePacket draft;                                   // @WorkflowScoped state
     @Trigger  void onRequest(@Valid CoursePacketRequest r)        // generate | refine
-    @Decision(order = 5)  boolean hasTeachableContent(...)        // gate
-    @Action(order = 10)   void writeIntro(...)                    // prose (per-subject rubric)
-    @Action(order = 20)   void writeQuiz(...)  { draft.setQuiz(parseQuiz(model.query(...))); }
-    @Action(order = 30)   void writeConclusion(...)               // uses workflow memory
+    @Decision(order = 1)  boolean hasTeachableContent(...)        // gate
+    @Action(order = 2)    void writeIntro(...)                    // prose (per-subject rubric)
+    @Action(order = 3)    void writeQuiz(...)  { draft.setQuiz(parseQuiz(model.query(...))); }
+    @Action(order = 4)    void writeConclusion(...)               // uses workflow memory
     @Outcome  void publish(...)                                   // writes to PacketStore
     @HandleException void onLlmFailure(LLMException e)            // resilience
+    @HandleException void onInvalidRequest(ConstraintViolationException e)
 }
 
 // Agent 2 — publishing, triggered by LessonApproved (event chaining)
@@ -258,8 +290,13 @@ class PublishAgent {
     @Decision boolean hasApprovedContent(...)
     @Action   void writeObjectives(...)                          // LLM: "what you'll learn"
     @Outcome  void publish(...)                                  // writes to PublishedLessonStore
+    @HandleException void onLlmFailure(LLMException e)
 }
 ```
+
+The **two** handlers on `CourseContentAgent` are the handler-selection rule from
+chapter 2 in production: an LLM outage and a Bean Validation failure on the trigger
+are different failure kinds, each with its own most-specific handler.
 
 ### Configuration (Vertex/Claude — cloud, demo-proof)
 

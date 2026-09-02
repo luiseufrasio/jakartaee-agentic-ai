@@ -21,8 +21,9 @@
    refinar via chat ("make the business email explanation friendlier and add an
    example"); refinar um campo só. Mostrar que a troca Ollama↔Claude é **um
    arquivo de propriedades**.
-6. **TCK e o caminho da spec (5 min).** Como se prova compatibilidade; detecção da
-   implementação pelo contexto `@WorkflowScoped`; o que vem na 2.0 (múltiplos
+6. **TCK e o caminho da spec (5 min).** Como se prova compatibilidade; o opt-in
+   `jakarta.ai.agent.tck.implementation.present`, que separa as asserções de
+   baseline em CDI puro das comportamentais; o que vem na 2.0 (múltiplos
    triggers, outros event sources, config padronizada de LLM).
 7. **Q&A.**
 
@@ -33,14 +34,20 @@
 - [ ] `agentic-ai-core.jar` atual copiado para
       `glassfish/modules/` da distribuição + domínio reiniciado **limpando o cache
       OSGi** (pegadinha clássica: JAR novo com cache velho = classe velha).
-- [ ] `ANTHROPIC_API_KEY` exportada **no mesmo shell/ambiente que inicia o
-      domínio** (`$env:ANTHROPIC_API_KEY = "sk-ant-..."` antes do
-      `asadmin restart-domain`) — o processo do servidor herda o ambiente do pai.
-- [ ] Os dois WARs deployados e testados na véspera E na manhã da palestra.
+- [ ] As credenciais do provedor de nuvem presentes **no mesmo shell/ambiente que
+      inicia o domínio** (o processo do servidor herda o ambiente do pai), *antes*
+      do `asadmin restart-domain`. Para a config Vertex padrão:
+      `gcloud auth application-default login` mais `ANTHROPIC_VERTEX_PROJECT_ID` /
+      `CLOUD_ML_REGION`. Se trocar para `provider=anthropic`:
+      `$env:ANTHROPIC_API_KEY = "sk-ant-..."`.
+- [ ] Os três WARs deployados e testados na véspera E na manhã da palestra
+      (`quickstart.war`, `tutorial-generator.war`, `course.war`).
 - [ ] `server.log` aberto num terminal com fonte grande (`Get-Content -Wait -Tail 0`).
 - [ ] Plano B sem rede: quickstart com Ollama já cobre a demo principal; o tutorial
       generator pode cair para `provider=ollama` / `model=gemma3:12b` (baixe o
-      modelo antes!).
+      modelo antes!). O Course Content Studio **não** cai bem: o timeout de 120 s
+      por chamada do backend Ollama é menor que o passo do quiz num 12B de
+      laptop.
 - [ ] Requests prontos (não digitar JSON ao vivo): script/arquivo `.http` com o
       POST válido, o POST vazio e os refines.
 
@@ -134,17 +141,20 @@ determinístico, em vez de comportamento indefinido na primeira execução em
 produção — mesma filosofia do CDI para beans mal-formados.
 </details>
 
-**3.** Sua demo do tutorial generator falha na conferência: o guia vem vazio e o log
-mostra `IllegalStateException: Anthropic provider selected but no API key found`.
-Qual foi o erro operacional e qual é o fix?
+**3.** Você trocou o tutorial generator para `provider=anthropic`, a demo falha na
+conferência: o guia vem vazio e o log mostra
+`IllegalStateException: ... no API key found`. Qual foi o erro operacional e qual é
+o fix?
 
 <details><summary>Ver resposta</summary>
 
 A `ANTHROPIC_API_KEY` não estava no ambiente **do processo do servidor** —
 provavelmente exportada num shell diferente ou depois do start do domínio. Fix:
 `$env:ANTHROPIC_API_KEY = "sk-ant-..."` e **então** `asadmin restart-domain` no
-mesmo shell (o servidor herda o ambiente de quem o inicia). Plano B: trocar para
-`provider=ollama` no microprofile-config.
+mesmo shell (o servidor herda o ambiente de quem o inicia). A mesma armadilha vale
+para a config Vertex que vem no sample, onde o que falta é ADC /
+`ANTHROPIC_VERTEX_PROJECT_ID`. Plano B: trocar para `provider=ollama` no
+microprofile-config.
 </details>
 
 **4.** Um espectador afirma: "isso é só um wrapper de anotações em volta de uma

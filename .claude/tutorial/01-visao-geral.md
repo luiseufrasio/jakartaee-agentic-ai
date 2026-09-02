@@ -95,7 +95,7 @@ payara.agentic.llm.model=gemma3:4b         payara.agentic.llm.model=claude-opus-
 Zero mudança de código, zero mudança no `pom.xml` (o backend HTTP do provedor vive
 no **servidor**, não no WAR), zero recompilação — no máximo um redeploy. É o mesmo
 salto que o Jakarta Persistence deu sobre o JDBC artesanal: o provider virou
-detalhe de configuração. Os dois samples do capítulo 8 provam isso ao vivo: têm
+detalhe de configuração. Os três samples do capítulo 8 provam isso ao vivo: têm
 agentes escritos da mesma forma, um rodando em Ollama local e outro em Claude, e a
 diferença entre eles é só o `microprofile-config.properties`.
 
@@ -136,7 +136,7 @@ O projeto é um build Maven multi-módulo com quatro módulos:
 | `api/` | O pacote `jakarta.ai.agent`: 7 anotações, 1 interface (`LargeLanguageModel`), 1 record (`Result`), 1 exceção (`LLMException`). **Nenhum código de implementação.** |
 | `spec/` | O documento da especificação em AsciiDoc (`jakarta-agentic-ai.adoc`). |
 | `tck/` | O Technology Compatibility Kit — os testes que qualquer implementação precisa passar para se declarar compatível (capítulo 4). |
-| `examples/` | Exemplos de uso. |
+| `examples/` | Cinco exemplos executáveis: `quickstart`, `tutorial-generator`, `course-content-studio`, `fraud-detection`, `docs-agent` (capítulo 8). |
 
 ## Decisões de design fundamentais
 
@@ -149,7 +149,9 @@ Estas são as decisões que mais geram perguntas — memorize as justificativas:
 2. **Jakarta JSON Binding (JSON-B) para serialização** — não Jackson. Motivo:
    comportamento **portável e consistente** entre implementações; JSON-B já é parte
    da plataforma Jakarta EE.
-3. **Baseline: Java 17, Jakarta EE 10, CDI 4.1.**
+3. **Baseline: Java 17, Jakarta EE 10 (portanto CDI 4.0).** Declarado uma única
+   vez no `pom.xml` raiz (`maven.compiler.release`, `jakarta.ee.version`) e
+   garantido pelo Maven Enforcer plugin.
 4. **A fachada `LargeLanguageModel` é minimalista de propósito.** Na 1.0, cada
    implementação escolhe como configurar o provedor. Versões futuras padronizarão a
    seleção de provedor e configurações comuns (temperature, max tokens) — o mesmo

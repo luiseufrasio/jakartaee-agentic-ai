@@ -1,4 +1,12 @@
-// Builds tutorials/html/index.html from tutorials/md/*.md
+// Builds tutorials/html/index.html from the Markdown chapters, in three languages.
+//
+//   English    tutorials/md/*.md
+//   Português  .claude/tutorial/*.md   (single source of truth, also used by /tutorial)
+//   Español    tutorials/md-es/*.md
+//
+// All three are embedded in one self-contained page; the flag buttons switch
+// language client-side, preserving the current chapter and the quiz progress.
+//
 // Payara palette (extracted from payara.fish frontend.css):
 //   primary orange #ee992f | brand navy #001b27 | inversed #00131b
 //   light #f9fafb | subtle #f4f4f4 | body #121212 | orange-subtle #fcebd5
@@ -9,33 +17,134 @@ import { join } from 'node:path';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
-const MD = join(HERE, '..', 'md');
 const OUT = join(HERE, 'index.html');
 
-const chapters = [
-  { file: '01-overview.md',                 short: 'Overview & Motivation' },
-  { file: '02-programming-model.md',        short: 'The Programming Model' },
-  { file: '03-largelanguagemodel.md',       short: 'LargeLanguageModel & Errors' },
-  { file: '04-tck.md',                      short: 'The TCK' },
-  { file: '05-payara-impl-cdi-extension.md',short: 'Payara Impl: CDI Extension' },
-  { file: '06-payara-impl-engine.md',       short: 'Payara Impl: WorkflowEngine' },
-  { file: '07-llm-backends.md',             short: 'LLM Backends & Config' },
-  { file: '08-samples.md',                  short: 'The Samples' },
-  { file: '09-presentation-guide.md',       short: 'Wrap-up & FAQ' },
+const LANGS = [
+  {
+    code: 'en',
+    flag: '<svg viewBox="0 0 24 16" width="23" height="15" aria-hidden="true"><rect width="24" height="16" fill="#fff"/><g fill="#b22234"><rect width="24" height="1.23"/><rect y="2.46" width="24" height="1.23"/><rect y="4.92" width="24" height="1.23"/><rect y="7.38" width="24" height="1.23"/><rect y="9.85" width="24" height="1.23"/><rect y="12.31" width="24" height="1.23"/><rect y="14.77" width="24" height="1.23"/></g><rect width="9.6" height="8.62" fill="#3c3b6e"/><g fill="#fff"><circle cx="1.0" cy="1.1" r=".42"/><circle cx="2.9" cy="1.1" r=".42"/><circle cx="4.8" cy="1.1" r=".42"/><circle cx="6.7" cy="1.1" r=".42"/><circle cx="8.6" cy="1.1" r=".42"/><circle cx="1.0" cy="3.2" r=".42"/><circle cx="2.9" cy="3.2" r=".42"/><circle cx="4.8" cy="3.2" r=".42"/><circle cx="6.7" cy="3.2" r=".42"/><circle cx="8.6" cy="3.2" r=".42"/><circle cx="1.0" cy="5.3" r=".42"/><circle cx="2.9" cy="5.3" r=".42"/><circle cx="4.8" cy="5.3" r=".42"/><circle cx="6.7" cy="5.3" r=".42"/><circle cx="8.6" cy="5.3" r=".42"/><circle cx="1.0" cy="7.4" r=".42"/><circle cx="2.9" cy="7.4" r=".42"/><circle cx="4.8" cy="7.4" r=".42"/><circle cx="6.7" cy="7.4" r=".42"/><circle cx="8.6" cy="7.4" r=".42"/></g></svg>',
+    name: 'English',
+    htmlLang: 'en',
+    dir: join(HERE, '..', 'md'),
+    title: 'Jakarta Agentic AI — Interactive Tutorial',
+    brand: 'Tutorial',
+    tagline: 'Spec · Payara implementation · Samples — with a quiz after every chapter.',
+    quizHint: 'Answer in your head, then reveal and score yourself.',
+    reveal: '💡 Reveal answer',
+    got: '✓ I got it',
+    missed: '✗ Missed it',
+    scoredOk: 'Scored: correct ✓',
+    scoredBad: 'Scored: to review ✗ — come back to this one before the talk',
+    retake: '↺ Retake quiz',
+    perfect: 'Perfect score — you have this chapter down. ✅',
+    complete: 'Quiz complete. Revisit the ✗ questions above before moving on.',
+    prev: '← Previous',
+    next: 'Next →',
+    foot: 'Colors from',
+    chapters: [
+      { file: '01-overview.md',                  short: 'Overview & Motivation' },
+      { file: '02-programming-model.md',         short: 'The Programming Model' },
+      { file: '03-largelanguagemodel.md',        short: 'LargeLanguageModel & Errors' },
+      { file: '04-tck.md',                       short: 'The TCK' },
+      { file: '05-payara-impl-cdi-extension.md', short: 'Payara Impl: CDI Extension' },
+      { file: '06-payara-impl-engine.md',        short: 'Payara Impl: WorkflowEngine' },
+      { file: '07-llm-backends.md',              short: 'LLM Backends & Config' },
+      { file: '08-samples.md',                   short: 'The Samples' },
+      { file: '09-presentation-guide.md',        short: 'Wrap-up & FAQ' },
+    ],
+  },
+  {
+    code: 'es',
+    flag: '<svg viewBox="0 0 24 16" width="23" height="15" aria-hidden="true"><rect width="24" height="16" fill="#c60b1e"/><rect y="4" width="24" height="8" fill="#ffc400"/></svg>',
+    name: 'Español',
+    htmlLang: 'es',
+    dir: join(HERE, '..', 'md-es'),
+    title: 'Jakarta Agentic AI — Tutorial interactivo',
+    brand: 'Tutorial',
+    tagline: 'Spec · Implementación Payara · Samples — con un test al final de cada capítulo.',
+    quizHint: 'Responde mentalmente, luego revela la respuesta y puntúate.',
+    reveal: '💡 Revelar respuesta',
+    got: '✓ Acerté',
+    missed: '✗ Fallé',
+    scoredOk: 'Puntuación: correcta ✓',
+    scoredBad: 'Puntuación: a repasar ✗ — vuelve a esta antes de la charla',
+    retake: '↺ Repetir test',
+    perfect: 'Puntuación perfecta — este capítulo lo dominas. ✅',
+    complete: 'Test completado. Repasa las preguntas ✗ de arriba antes de seguir.',
+    prev: '← Anterior',
+    next: 'Siguiente →',
+    foot: 'Colores de',
+    chapters: [
+      { file: '01-vision-general.md',              short: 'Visión general y motivación' },
+      { file: '02-modelo-de-programacion.md',      short: 'El modelo de programación' },
+      { file: '03-largelanguagemodel.md',          short: 'LargeLanguageModel y errores' },
+      { file: '04-tck.md',                         short: 'El TCK' },
+      { file: '05-implementacion-extension-cdi.md',short: 'Impl. Payara: extensión CDI' },
+      { file: '06-implementacion-engine.md',       short: 'Impl. Payara: WorkflowEngine' },
+      { file: '07-backends-llm.md',                short: 'Backends LLM y configuración' },
+      { file: '08-samples.md',                     short: 'Los samples' },
+      { file: '09-guia-presentacion.md',           short: 'Cierre y FAQ' },
+    ],
+  },
+  {
+    code: 'pt',
+    flag: '<svg viewBox="0 0 24 16" width="23" height="15" aria-hidden="true"><rect width="24" height="16" fill="#009b3a"/><path d="M12 2.2 21.4 8 12 13.8 2.6 8Z" fill="#fedf00"/><circle cx="12" cy="8" r="3.4" fill="#002776"/><path d="M8.7 7.2c2.3-1.1 4.9-.6 6.7 1.2" stroke="#fff" stroke-width=".9" fill="none"/></svg>',
+    name: 'Português',
+    htmlLang: 'pt-BR',
+    dir: join(HERE, '..', '..', '.claude', 'tutorial'),
+    title: 'Jakarta Agentic AI — Tutorial interativo',
+    brand: 'Tutorial',
+    tagline: 'Spec · Implementação Payara · Samples — com quiz ao final de cada capítulo.',
+    quizHint: 'Responda de cabeça, depois revele a resposta e se pontue.',
+    reveal: '💡 Revelar resposta',
+    got: '✓ Acertei',
+    missed: '✗ Errei',
+    scoredOk: 'Pontuação: correta ✓',
+    scoredBad: 'Pontuação: revisar ✗ — volte nesta antes da palestra',
+    retake: '↺ Refazer quiz',
+    perfect: 'Pontuação perfeita — este capítulo está dominado. ✅',
+    complete: 'Quiz concluído. Revise as questões ✗ acima antes de seguir.',
+    prev: '← Anterior',
+    next: 'Próximo →',
+    foot: 'Cores de',
+    chapters: [
+      { file: '01-visao-geral.md',                short: 'Visão geral e motivação' },
+      { file: '02-modelo-de-programacao.md',      short: 'O modelo de programação' },
+      { file: '03-largelanguagemodel.md',         short: 'LargeLanguageModel e erros' },
+      { file: '04-tck.md',                        short: 'O TCK' },
+      { file: '05-implementacao-extensao-cdi.md', short: 'Impl. Payara: extensão CDI' },
+      { file: '06-implementacao-engine.md',       short: 'Impl. Payara: WorkflowEngine' },
+      { file: '07-backends-llm.md',               short: 'Backends LLM e configuração' },
+      { file: '08-samples.md',                    short: 'Os samples' },
+      { file: '09-roteiro-apresentacao.md',       short: 'Roteiro & FAQ' },
+    ],
+  },
 ];
+
+const DEFAULT_LANG = 'en';
 
 marked.setOptions({ gfm: true, breaks: false });
 
 function render(md) {
-  // strip the trailing "➡️ Next:" nav line (the app has its own nav)
-  md = md.replace(/^➡️ Next:.*$/m, '').replace(/^---\s*$(?![\s\S]*^---\s*$)/m, m => m);
-  return marked.parse(md);
+  // strip the trailing "➡️ Next / Próximo / Siguiente:" nav line (the app has its own nav)
+  return marked.parse(md.replace(/^➡️.*$/m, ''));
 }
 
-const sections = chapters.map((ch, i) => {
-  const html = render(readFileSync(join(MD, ch.file), 'utf8'));
-  return `<section class="chapter" id="ch-${i + 1}" data-num="${i + 1}">\n${html}\n</section>`;
-}).join('\n');
+const sections = LANGS.flatMap(lang =>
+  lang.chapters.map((ch, i) => {
+    const html = render(readFileSync(join(lang.dir, ch.file), 'utf8'));
+    return `<section class="chapter" id="ch-${lang.code}-${i + 1}" data-lang="${lang.code}" data-num="${i + 1}">\n${html}\n</section>`;
+  })
+).join('\n');
+
+// Everything the runtime needs, per language — no file paths leak into the page.
+const I18N = Object.fromEntries(LANGS.map(l => [l.code, {
+  flag: l.flag, name: l.name, htmlLang: l.htmlLang, title: l.title, brand: l.brand,
+  tagline: l.tagline, quizHint: l.quizHint, reveal: l.reveal, got: l.got,
+  missed: l.missed, scoredOk: l.scoredOk, scoredBad: l.scoredBad, retake: l.retake,
+  perfect: l.perfect, complete: l.complete, prev: l.prev, next: l.next, foot: l.foot,
+  chapters: l.chapters.map((c, i) => ({ n: i + 1, t: c.short })),
+}]));
 
 const page = `<!DOCTYPE html>
 <html lang="en">
@@ -80,6 +189,13 @@ body{margin:0;font-family:var(--sans);color:var(--body);background:var(--light);
 #sidebar nav a .score.done{color:#5ad18a}
 #sidebar .foot{padding:16px 22px;border-top:1px solid rgba(255,255,255,.08);font-size:11.5px;color:#7e929d;line-height:1.5}
 #sidebar .foot a{color:var(--orange);text-decoration:none}
+
+/* ── Language switcher (fixed, top-right) ─────────── */
+#langbar{position:fixed;top:14px;right:20px;z-index:65;display:flex;gap:6px;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:11px;padding:5px;box-shadow:0 2px 10px rgba(0,19,27,.10)}
+#langbar button{display:flex;align-items:center;justify-content:center;background:none;border:1.5px solid transparent;border-radius:7px;padding:4px 6px;cursor:pointer;line-height:0;opacity:.45;transition:opacity .15s,border-color .15s,background .15s}
+#langbar button svg{display:block;border-radius:2px}
+#langbar button:hover{opacity:.85;background:var(--subtle)}
+#langbar button.active{opacity:1;border-color:var(--orange);background:var(--orange-subtle)}
 
 /* ── Content ──────────────────────────────────────── */
 #main{margin-left:var(--sidebar-w);min-height:100vh}
@@ -182,6 +298,7 @@ body{margin:0;font-family:var(--sans);color:var(--body);background:var(--light);
 <body>
 <div id="progressbar"></div>
 <button id="menu-btn" aria-label="Menu">☰</button>
+<div id="langbar"></div>
 
 <aside id="sidebar">
   <div class="brand">
@@ -191,12 +308,12 @@ body{margin:0;font-family:var(--sans);color:var(--body);background:var(--light);
         <path d="M6 17c3.2-4.6 7.6-7 12.2-7 3.4 0 6.6 1.3 9.3 3.8l-2.3 3.2 2.3 3.2c-2.7 2.5-5.9 3.8-9.3 3.8-4.6 0-9-2.4-12.2-7z" fill="#001b27"/>
         <circle cx="22.6" cy="15.4" r="1.5" fill="#ee992f"/>
       </svg>
-      <h1>Jakarta <em>Agentic AI</em><br>Tutorial</h1>
+      <h1>Jakarta <em>Agentic AI</em><br><span id="brand-word">Tutorial</span></h1>
     </div>
-    <p>Spec · Payara implementation · Samples — with a quiz after every chapter.</p>
+    <p id="tagline"></p>
   </div>
   <nav id="chnav-list"></nav>
-  <div class="foot">Colors from <a href="https://payara.fish" target="_blank" rel="noopener">payara.fish</a></div>
+  <div class="foot"><span id="foot-text"></span> <a href="https://payara.fish" target="_blank" rel="noopener">payara.fish</a></div>
 </aside>
 
 <div id="main"><div id="content">
@@ -204,11 +321,28 @@ ${sections}
 </div></div>
 
 <script>
-const CHAPTERS = ${JSON.stringify(chapters.map((c, i) => ({ n: i + 1, t: c.short })))};
+const I18N = ${JSON.stringify(I18N)};
+const LANG_ORDER = ${JSON.stringify(LANGS.map(l => l.code))};
+const DEFAULT_LANG = ${JSON.stringify(DEFAULT_LANG)};
+
 const store = {
   get(k, d){ try { return JSON.parse(localStorage.getItem('jaai.'+k)) ?? d; } catch(e){ return d; } },
   set(k, v){ try { localStorage.setItem('jaai.'+k, JSON.stringify(v)); } catch(e){} }
 };
+
+/* ── language state ──────────────────────────────── */
+function initialLang(){
+  const q = new URLSearchParams(location.search).get('lang');
+  if(q && I18N[q]) return q;
+  const saved = store.get('lang', null);
+  if(saved && I18N[saved]) return saved;
+  const nav = (navigator.language || '').toLowerCase();
+  const guess = LANG_ORDER.find(c => nav.startsWith(c) || (c === 'pt' && nav.startsWith('pt')));
+  return guess || DEFAULT_LANG;
+}
+let LANG = initialLang();
+function t(){ return I18N[LANG]; }
+function CHAPTERS(){ return t().chapters; }
 
 /* ── syntax highlighting (tiny, dependency-free) ── */
 function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -239,23 +373,26 @@ document.querySelectorAll('pre code').forEach(code => {
   else if(lang === 'bash') code.innerHTML = raw.split('\\n').map(l => /^\\s*#/.test(l) ? '<span class="tok-cmt">'+esc(l)+'</span>' : esc(l)).join('\\n');
 });
 
-/* ── quiz enhancement ── */
+/* ── quiz enhancement (per language section) ── */
 document.querySelectorAll('.chapter').forEach(section => {
   const chNum = section.dataset.num;
+  const secLang = section.dataset.lang;
+  const L = I18N[secLang];
   const details = [...section.querySelectorAll('details')];
   if(!details.length) return;
 
   // banner under the quiz h2
-  const quizH2 = [...section.querySelectorAll('h2')].find(h => /quiz/i.test(h.textContent));
+  const quizH2 = [...section.querySelectorAll('h2')].find(h => /quiz|test/i.test(h.textContent));
   if(quizH2){
     const banner = document.createElement('div');
     banner.className = 'quiz-banner';
     banner.innerHTML = '<div class="qb-ico">🎯</div><div><h2>'+quizH2.textContent+'</h2>'+
-      '<p>Answer in your head, then reveal and score yourself.</p></div>';
+      '<p>'+L.quizHint+'</p></div>';
     quizH2.replaceWith(banner);
   }
 
   details.forEach((det, qi) => {
+    // progress is shared across languages: same chapter, same question number
     const key = 'score.'+chNum+'.'+qi;
     const card = document.createElement('div');
     card.className = 'quiz-card';
@@ -280,11 +417,11 @@ document.querySelectorAll('.chapter').forEach(section => {
     const actions = document.createElement('div');
     actions.className = 'quiz-actions';
     const btnReveal = document.createElement('button');
-    btnReveal.className = 'btn btn-reveal'; btnReveal.textContent = '💡 Reveal answer';
+    btnReveal.className = 'btn btn-reveal'; btnReveal.textContent = L.reveal;
     const btnOk = document.createElement('button');
-    btnOk.className = 'btn btn-ok'; btnOk.textContent = '✓ I got it'; btnOk.style.display = 'none';
+    btnOk.className = 'btn btn-ok'; btnOk.textContent = L.got; btnOk.style.display = 'none';
     const btnBad = document.createElement('button');
-    btnBad.className = 'btn btn-bad'; btnBad.textContent = '✗ Missed it'; btnBad.style.display = 'none';
+    btnBad.className = 'btn btn-bad'; btnBad.textContent = L.missed; btnBad.style.display = 'none';
     const verdict = document.createElement('div'); verdict.className = 'quiz-verdict';
     actions.append(btnReveal, btnOk, btnBad);
     card.append(actions, answer, verdict);
@@ -293,7 +430,7 @@ document.querySelectorAll('.chapter').forEach(section => {
       card.classList.toggle('scored-ok', v === 1);
       card.classList.toggle('scored-bad', v === 0);
       verdict.className = 'quiz-verdict ' + (v === 1 ? 'v-ok' : 'v-bad');
-      verdict.textContent = v === 1 ? 'Scored: correct ✓' : 'Scored: to review ✗ — come back to this one before the talk';
+      verdict.textContent = v === 1 ? L.scoredOk : L.scoredBad;
       if(save){ store.set(key, v); updateSidebar(); updateSummary(section); }
     }
     btnReveal.onclick = () => {
@@ -318,7 +455,7 @@ document.querySelectorAll('.chapter').forEach(section => {
   summaryEl.className = 'quiz-summary';
   summaryEl.innerHTML = '<div class="big"></div><p></p>';
   const resetBtn = document.createElement('button');
-  resetBtn.className = 'btn'; resetBtn.textContent = '↺ Retake quiz';
+  resetBtn.className = 'btn'; resetBtn.textContent = L.retake;
   resetBtn.onclick = () => {
     details.forEach((_, qi) => localStorage.removeItem('jaai.score.'+chNum+'.'+qi));
     location.reload();
@@ -329,8 +466,9 @@ document.querySelectorAll('.chapter').forEach(section => {
   updateSummary(section);
 });
 
-function chapterScore(chNum){
-  const section = document.getElementById('ch-'+chNum);
+function chapterScore(chNum, lang){
+  const section = document.getElementById('ch-'+(lang||LANG)+'-'+chNum);
+  if(!section) return { total: 0, answered: 0, right: 0 };
   const total = section.querySelectorAll('.quiz-card').length;
   let answered = 0, right = 0;
   for(let qi = 0; qi < total; qi++){
@@ -340,57 +478,107 @@ function chapterScore(chNum){
   return { total, answered, right };
 }
 function updateSummary(section){
-  const chNum = section.dataset.num;
-  const s = chapterScore(chNum);
+  const s = chapterScore(section.dataset.num, section.dataset.lang);
   const el = section.querySelector('.quiz-summary');
   if(!el) return;
+  const L = I18N[section.dataset.lang];
   if(s.answered === s.total && s.total > 0){
     el.classList.add('show');
     el.querySelector('.big').textContent = s.right + '/' + s.total;
-    el.querySelector('p').textContent = s.right === s.total
-      ? 'Perfect score — you have this chapter down. ✅'
-      : 'Quiz complete. Revisit the ✗ questions above before moving on.';
+    el.querySelector('p').textContent = s.right === s.total ? L.perfect : L.complete;
+  } else {
+    el.classList.remove('show');
   }
 }
 
-/* ── sidebar + routing ── */
-const navList = document.getElementById('chnav-list');
-CHAPTERS.forEach(c => {
-  const a = document.createElement('a');
-  a.href = '#' + c.n;
-  a.innerHTML = '<span class="num">'+c.n+'</span><span>'+c.t+'</span><span class="score"></span>';
-  navList.appendChild(a);
+/* ── language switcher ── */
+const langBar = document.getElementById('langbar');
+LANG_ORDER.forEach(code => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.dataset.lang = code;
+  b.title = I18N[code].name;
+  b.setAttribute('aria-label', I18N[code].name);
+  b.innerHTML = I18N[code].flag;
+  b.onclick = () => setLang(code);
+  langBar.appendChild(b);
 });
+function setLang(code){
+  if(!I18N[code] || code === LANG) return;
+  LANG = code;
+  store.set('lang', code);
+  const url = new URL(location.href);
+  url.searchParams.set('lang', code);
+  history.replaceState(null, '', url.toString().replace(/%23/g, '#'));
+  applyLang();
+  show(current());
+}
+function applyLang(){
+  const L = t();
+  document.documentElement.lang = L.htmlLang;
+  document.title = L.title;
+  document.getElementById('brand-word').textContent = L.brand;
+  document.getElementById('tagline').textContent = L.tagline;
+  document.getElementById('foot-text').textContent = L.foot;
+  langBar.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.lang === LANG));
+  buildNav();
+  buildChapterFooters();
+}
+
+/* ── sidebar ── */
+const navList = document.getElementById('chnav-list');
+function buildNav(){
+  navList.innerHTML = '';
+  CHAPTERS().forEach(c => {
+    const a = document.createElement('a');
+    a.href = '#' + c.n;
+    a.innerHTML = '<span class="num">'+c.n+'</span><span></span><span class="score"></span>';
+    a.children[1].textContent = c.t;
+    navList.appendChild(a);
+  });
+  updateSidebar();
+}
 function updateSidebar(){
-  document.querySelectorAll('#chnav-list a').forEach((a, i) => {
+  navList.querySelectorAll('a').forEach((a, i) => {
     const s = chapterScore(i + 1);
     const el = a.querySelector('.score');
     if(s.answered === 0){ el.textContent = ''; el.className = 'score'; }
     else { el.textContent = s.right + '/' + s.total; el.className = 'score' + (s.answered === s.total ? ' done' : ''); }
   });
 }
+
+/* prev/next footers, rebuilt on language change */
+function buildChapterFooters(){
+  document.querySelectorAll('.chapter').forEach(section => {
+    const lang = section.dataset.lang;
+    const L = I18N[lang];
+    const chs = L.chapters;
+    const n = parseInt(section.dataset.num);
+    section.querySelector('.chnav')?.remove();
+    const nav = document.createElement('div');
+    nav.className = 'chnav';
+    const prev = n > 1 ? '<a href="#'+(n-1)+'"><span class="dir">'+L.prev+'</span><span class="ttl"></span></a>' : '<a class="hidden"></a>';
+    const next = n < chs.length ? '<a class="next" href="#'+(n+1)+'"><span class="dir">'+L.next+'</span><span class="ttl"></span></a>' : '<a class="hidden"></a>';
+    nav.innerHTML = prev + next;
+    const titles = nav.querySelectorAll('.ttl');
+    let ti = 0;
+    if(n > 1) titles[ti++].textContent = chs[n-2].t;
+    if(n < chs.length) titles[ti].textContent = chs[n].t;
+    section.appendChild(nav);
+  });
+}
+
 function show(n){
-  n = Math.min(Math.max(1, n), CHAPTERS.length);
+  n = Math.min(Math.max(1, n), CHAPTERS().length);
   document.querySelectorAll('.chapter').forEach(s => s.classList.remove('visible'));
-  document.getElementById('ch-'+n).classList.add('visible');
-  document.querySelectorAll('#chnav-list a').forEach((a, i) => a.classList.toggle('active', i === n-1));
+  document.getElementById('ch-'+LANG+'-'+n)?.classList.add('visible');
+  navList.querySelectorAll('a').forEach((a, i) => a.classList.toggle('active', i === n-1));
   document.getElementById('sidebar').classList.remove('open');
   window.scrollTo({top: 0, behavior: 'instant'});
   updateBar();
 }
 function current(){ return parseInt(location.hash.slice(1)) || 1; }
 window.addEventListener('hashchange', () => show(current()));
-
-/* prev/next footers */
-document.querySelectorAll('.chapter').forEach(section => {
-  const n = parseInt(section.dataset.num);
-  const nav = document.createElement('div');
-  nav.className = 'chnav';
-  const prev = n > 1 ? '<a href="#'+(n-1)+'"><span class="dir">← Previous</span><span class="ttl">'+CHAPTERS[n-2].t+'</span></a>' : '<a class="hidden"></a>';
-  const next = n < CHAPTERS.length ? '<a class="next" href="#'+(n+1)+'"><span class="dir">Next →</span><span class="ttl">'+CHAPTERS[n].t+'</span></a>' : '<a class="hidden"></a>';
-  nav.innerHTML = prev + next;
-  section.appendChild(nav);
-});
 
 /* reading progress bar */
 function updateBar(){
@@ -403,13 +591,13 @@ window.addEventListener('scroll', updateBar, { passive: true });
 /* keyboard: ← → switch chapters */
 window.addEventListener('keydown', e => {
   if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  if(e.key === 'ArrowRight' && current() < CHAPTERS.length) location.hash = '#' + (current() + 1);
+  if(e.key === 'ArrowRight' && current() < CHAPTERS().length) location.hash = '#' + (current() + 1);
   if(e.key === 'ArrowLeft' && current() > 1) location.hash = '#' + (current() - 1);
 });
 
 document.getElementById('menu-btn').onclick = () => document.getElementById('sidebar').classList.toggle('open');
 
-updateSidebar();
+applyLang();
 show(current());
 </script>
 </body>
@@ -417,4 +605,5 @@ show(current());
 `;
 
 writeFileSync(OUT, page);
-console.log('written', OUT, (page.length / 1024).toFixed(0) + ' KB');
+console.log('written', OUT, (page.length / 1024).toFixed(0) + ' KB',
+            '·', LANGS.map(l => l.code).join('/'));

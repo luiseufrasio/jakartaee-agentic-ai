@@ -7,7 +7,7 @@ Cobre as três camadas que você vai apresentar:
 | --- | --- | --- |
 | **Especificação** | `C:\Users\luise\git\ai\jakartaee-agentic-ai` | API `jakarta.ai.agent`, documento da spec e TCK |
 | **Implementação** | `C:\Users\luise\git\Payara\appserver\agentic-ai\agentic-ai-core` | Runtime da Payara: extensão CDI, engine de workflow, backends LLM |
-| **Samples** | `...\payara-samples\samples\agentic-ai-quickstart` e `...\samples\agentic-ai` | Quickstart (pergunta/resposta) e Tutorial Generator (geração + refinamento via chat) |
+| **Samples** | `examples/` neste repositório | `quickstart` (pergunta/resposta), `tutorial-generator` (geração + refinamento via chat) e `course-content-studio` (dois agentes + gate de aprovação). Os gêmeos com sabor Payara dos dois primeiros, que carregam os testes Arquillian, ficam em `...\payara-samples\samples\`. |
 
 ## Como usar
 
@@ -26,7 +26,7 @@ Cobre as três camadas que você vai apresentar:
 5. [Implementação Payara: a extensão CDI](05-implementacao-extensao-cdi.md) — descoberta de agentes, observer sintético, LLM default auto-vetado
 6. [Implementação Payara: WorkflowEngine e escopo](06-implementacao-engine.md) — orquestração das fases, `WorkflowContext`, `ParameterResolver`, `@WorkflowScoped`
 7. [Backends LLM e configuração](07-backends-llm.md) — MicroProfile Config, Ollama, Anthropic (Claude), Vertex, NoOp, prompt caching
-8. [Os samples](08-samples.md) — quickstart e tutorial generator, linha a linha
+8. [Os samples](08-samples.md) — quickstart, tutorial generator e course content studio, linha a linha
 9. [Roteiro da apresentação](09-roteiro-apresentacao.md) — narrativa sugerida, checklist de demo, perguntas prováveis da plateia + quiz final
 
 Cada capítulo termina com um **quiz** — na apresentação você vai receber
