@@ -96,9 +96,9 @@ payara.agentic.llm.model=gemma3:4b         payara.agentic.llm.model=claude-opus-
 Zero code changes, zero `pom.xml` changes (the provider's HTTP backend lives in
 the **server**, not in the WAR), zero recompilation — at most a redeploy. It is the
 same leap Jakarta Persistence made over hand-rolled JDBC: the provider became a
-configuration detail. The two samples in chapter 8 prove this live: their agents
-are written the same way, one running on local Ollama and the other on Claude, and
-the only difference between them is `microprofile-config.properties`.
+configuration detail. The three samples in chapter 8 prove this live: their agents
+are written the same way, one running on local Ollama and the other two on Claude,
+and the only difference between them is `microprofile-config.properties`.
 
 ## The mental model: a workflow of phases
 
@@ -139,7 +139,7 @@ The project is a multi-module Maven build with four modules:
 | `api/` | The `jakarta.ai.agent` package: 7 annotations, 1 interface (`LargeLanguageModel`), 1 record (`Result`), 1 exception (`LLMException`). **No implementation code.** |
 | `spec/` | The specification document in AsciiDoc (`jakarta-agentic-ai.adoc`). |
 | `tck/` | The Technology Compatibility Kit — the tests any implementation must pass to claim compatibility (chapter 4). |
-| `examples/` | Usage examples. |
+| `examples/` | Five runnable usage examples: `quickstart`, `tutorial-generator`, `course-content-studio`, `fraud-detection`, `docs-agent` (chapter 8). |
 
 ## Fundamental design decisions
 
@@ -152,7 +152,9 @@ These are the decisions that generate the most questions — here is the rationa
 2. **Jakarta JSON Binding (JSON-B) for serialization** — not Jackson. Reason:
    **portable, consistent** behavior across implementations; JSON-B is already part
    of the Jakarta EE platform.
-3. **Baseline: Java 17, Jakarta EE 10, CDI 4.1.**
+3. **Baseline: Java 17, Jakarta EE 10 (therefore CDI 4.0).** Declared once in
+   the root `pom.xml` (`maven.compiler.release`, `jakarta.ee.version`) and enforced
+   by the Maven Enforcer plugin.
 4. **The `LargeLanguageModel` facade is minimalist on purpose.** In 1.0 each
    implementation chooses how to configure the provider. Future versions will
    standardize provider selection and common settings (temperature, max tokens) —

@@ -150,7 +150,8 @@ configuration from, and why does that showcase the spec's value so well?
 <details><summary>Show answer</summary>
 
 From each WAR's `META-INF/microprofile-config.properties` (quickstart: Ollama +
-`gemma3:4b`; tutorial: Anthropic + `claude-opus-4-8` + a system prompt). The
+`gemma3:4b`; tutorial generator and course content studio: Vertex +
+`claude-sonnet-4-6` + a system prompt). The
 **agents' code is identical in style and mentions no provider at all** — switching
 from a free local model to Claude in the cloud means editing a properties file.
 Vendor neutrality in practice.

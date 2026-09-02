@@ -2,8 +2,8 @@
 
 ## The facade
 
-`LargeLanguageModel` is the **only functional interface in the API** — a
-minimalist, CDI-injectable facade for talking to the model:
+`LargeLanguageModel` is the **only interface in the API** — a minimalist,
+CDI-injectable facade for talking to the model:
 
 ```java
 public interface LargeLanguageModel {
